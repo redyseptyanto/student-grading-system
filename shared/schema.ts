@@ -49,8 +49,13 @@ export const teachers = pgTable("teachers", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   fullName: varchar("full_name").notNull(),
+  email: varchar("email"),
+  phone: varchar("phone"),
+  subjects: jsonb("subjects").$type<string[]>().default([]),
   assignedClasses: jsonb("assigned_classes").$type<number[]>().default([]),
+  qualifications: text("qualifications"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Parents table
@@ -68,6 +73,35 @@ export const students = pgTable("students", {
   classId: integer("class_id").references(() => classes.id),
   parentId: integer("parent_id").references(() => parents.id),
   grades: jsonb("grades").$type<Record<string, number[]>>().default({}),
+  academicYear: varchar("academic_year").default("2024-2025"),
+  dateOfBirth: varchar("date_of_birth"),
+  parentContact: varchar("parent_contact"),
+  address: text("address"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Report templates table
+export const reportTemplates = pgTable("report_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  description: text("description").notNull(),
+  layout: varchar("layout", { enum: ["standard", "detailed", "compact", "portfolio"] }).notNull().default("standard"),
+  includePhoto: boolean("include_photo").default(true),
+  includeRadarChart: boolean("include_radar_chart").default(true),
+  includeNarration: boolean("include_narration").default(true),
+  includeDiscipline: boolean("include_discipline").default(true),
+  includeGrowthReport: boolean("include_growth_report").default(true),
+  includeTeacherSignature: boolean("include_teacher_signature").default(true),
+  gradingPeriods: jsonb("grading_periods").$type<string[]>().default(["Term 1"]),
+  headerContent: text("header_content"),
+  footerContent: text("footer_content"),
+  customFields: jsonb("custom_fields").$type<Array<{
+    label: string;
+    type: "text" | "number" | "date" | "textarea";
+    required: boolean;
+  }>>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -141,6 +175,12 @@ export const insertClassSchema = createInsertSchema(classes).omit({
   createdAt: true,
 });
 
+export const insertReportTemplateSchema = createInsertSchema(reportTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Grade input schema
 export const gradeInputSchema = z.object({
   studentId: z.number(),
@@ -166,6 +206,8 @@ export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type Student = typeof students.$inferSelect;
 export type InsertClass = z.infer<typeof insertClassSchema>;
 export type Class = typeof classes.$inferSelect;
+export type InsertReportTemplate = z.infer<typeof insertReportTemplateSchema>;
+export type ReportTemplate = typeof reportTemplates.$inferSelect;
 export type GradeInput = z.infer<typeof gradeInputSchema>;
 export type RadarChartConfig = z.infer<typeof radarChartConfigSchema>;
 

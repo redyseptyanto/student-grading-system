@@ -10,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import GradeInput from "@/pages/GradeInput";
 import StudentProgress from "@/pages/StudentProgress";
 import RadarCharts from "@/pages/RadarCharts";
+import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,9 +30,10 @@ function Router() {
           <Route path="/charts" component={RadarCharts} />
           <Route path="/reports" component={RadarCharts} />
           <Route path="/communication" component={Dashboard} />
-          <Route path="/admin/users" component={Dashboard} />
-          <Route path="/admin/schools" component={Dashboard} />
-          <Route path="/admin/reports" component={Dashboard} />
+          <Route path="/admin" component={AdminDashboard} />
+          <Route path="/admin/users" component={AdminDashboard} />
+          <Route path="/admin/schools" component={AdminDashboard} />
+          <Route path="/admin/reports" component={AdminDashboard} />
         </>
       )}
       {/* Fallback to 404 */}

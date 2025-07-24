@@ -4,6 +4,7 @@ import {
   parents,
   students,
   classes,
+  reportTemplates,
   type User,
   type UpsertUser,
   type Teacher,
@@ -14,6 +15,8 @@ import {
   type InsertStudent,
   type Class,
   type InsertClass,
+  type ReportTemplate,
+  type InsertReportTemplate,
   type GradeInput,
 } from "@shared/schema";
 import { db } from "./db";
@@ -46,6 +49,21 @@ export interface IStorage {
   getClass(id: number): Promise<Class | undefined>;
   getClasses(): Promise<Class[]>;
   createClass(classData: InsertClass): Promise<Class>;
+  
+  // Admin operations
+  getStudentsWithDetails(): Promise<Student[]>;
+  updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student>;
+  updateStudentStatus(id: number, isActive: boolean): Promise<Student>;
+  deleteStudent(id: number): Promise<void>;
+  getTeachers(): Promise<Teacher[]>;
+  getTeachersWithDetails(): Promise<Teacher[]>;
+  createTeacherAdmin(data: any): Promise<Teacher>;
+  updateTeacherAdmin(id: number, data: Partial<Teacher>): Promise<Teacher>;
+  deleteTeacherAdmin(id: number): Promise<void>;
+  getAllReportTemplates(): Promise<ReportTemplate[]>;
+  createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate>;
+  updateReportTemplate(id: number, data: Partial<ReportTemplate>): Promise<ReportTemplate>;
+  deleteReportTemplate(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -170,6 +188,81 @@ export class DatabaseStorage implements IStorage {
   async createClass(classData: InsertClass): Promise<Class> {
     const [newClass] = await db.insert(classes).values(classData).returning();
     return newClass;
+  }
+
+  // Admin operations
+  async getStudentsWithDetails(): Promise<Student[]> {
+    return await db.select().from(students);
+  }
+
+  async updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student> {
+    const [updatedStudent] = await db
+      .update(students)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(students.id, id))
+      .returning();
+    return updatedStudent;
+  }
+
+  async updateStudentStatus(id: number, isActive: boolean): Promise<Student> {
+    const [updatedStudent] = await db
+      .update(students)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(students.id, id))
+      .returning();
+    return updatedStudent;
+  }
+
+  async deleteStudent(id: number): Promise<void> {
+    await db.delete(students).where(eq(students.id, id));
+  }
+
+  async getTeachers(): Promise<Teacher[]> {
+    return await db.select().from(teachers);
+  }
+
+  async getTeachersWithDetails(): Promise<Teacher[]> {
+    return await db.select().from(teachers);
+  }
+
+  async createTeacherAdmin(data: any): Promise<Teacher> {
+    const [newTeacher] = await db.insert(teachers).values(data).returning();
+    return newTeacher;
+  }
+
+  async updateTeacherAdmin(id: number, data: Partial<Teacher>): Promise<Teacher> {
+    const [updatedTeacher] = await db
+      .update(teachers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(teachers.id, id))
+      .returning();
+    return updatedTeacher;
+  }
+
+  async deleteTeacherAdmin(id: number): Promise<void> {
+    await db.delete(teachers).where(eq(teachers.id, id));
+  }
+
+  async getAllReportTemplates(): Promise<ReportTemplate[]> {
+    return await db.select().from(reportTemplates);
+  }
+
+  async createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate> {
+    const [newTemplate] = await db.insert(reportTemplates).values(data).returning();
+    return newTemplate;
+  }
+
+  async updateReportTemplate(id: number, data: Partial<ReportTemplate>): Promise<ReportTemplate> {
+    const [updatedTemplate] = await db
+      .update(reportTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(reportTemplates.id, id))
+      .returning();
+    return updatedTemplate;
+  }
+
+  async deleteReportTemplate(id: number): Promise<void> {
+    await db.delete(reportTemplates).where(eq(reportTemplates.id, id));
   }
 }
 

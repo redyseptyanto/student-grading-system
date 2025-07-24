@@ -261,6 +261,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin routes - admin-only access
+  const requireAdmin = async (req: any, res: any, next: any) => {
+    const userId = req.user?.claims?.sub;
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  };
+
+  // Admin dashboard stats
+  app.get('/api/admin/stats', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const students = await storage.getStudents();
+      const teachers = await storage.getTeachers();
+      const classes = await storage.getClasses();
+      const templates = await storage.getAllReportTemplates();
+      
+      res.json({
+        totalStudents: students.length,
+        totalTeachers: teachers.length,
+        totalClasses: classes.length,
+        totalReportTemplates: templates.length,
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  // Student management (admin)
+  app.get('/api/admin/students', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const students = await storage.getStudentsWithDetails();
+      res.json(students);
+    } catch (error) {
+      console.error("Error fetching students for admin:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
+  app.patch('/api/admin/students/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      const student = await storage.updateStudentAdmin(id, updateData);
+      res.json(student);
+    } catch (error) {
+      console.error("Error updating student:", error);
+      res.status(500).json({ message: "Failed to update student" });
+    }
+  });
+
+  app.patch('/api/admin/students/:id/status', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isActive } = req.body;
+      const student = await storage.updateStudentStatus(id, isActive);
+      res.json(student);
+    } catch (error) {
+      console.error("Error updating student status:", error);
+      res.status(500).json({ message: "Failed to update student status" });
+    }
+  });
+
+  app.delete('/api/admin/students/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteStudent(id);
+      res.json({ message: "Student deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting student:", error);
+      res.status(500).json({ message: "Failed to delete student" });
+    }
+  });
+
+  // Teacher management (admin)
+  app.get('/api/admin/teachers', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const teachers = await storage.getTeachersWithDetails();
+      res.json(teachers);
+    } catch (error) {
+      console.error("Error fetching teachers for admin:", error);
+      res.status(500).json({ message: "Failed to fetch teachers" });
+    }
+  });
+
+  app.post('/api/admin/teachers', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const teacherData = req.body;
+      const teacher = await storage.createTeacherAdmin(teacherData);
+      res.json(teacher);
+    } catch (error) {
+      console.error("Error creating teacher:", error);
+      res.status(500).json({ message: "Failed to create teacher" });
+    }
+  });
+
+  app.patch('/api/admin/teachers/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      const teacher = await storage.updateTeacherAdmin(id, updateData);
+      res.json(teacher);
+    } catch (error) {
+      console.error("Error updating teacher:", error);
+      res.status(500).json({ message: "Failed to update teacher" });
+    }
+  });
+
+  app.delete('/api/admin/teachers/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTeacherAdmin(id);
+      res.json({ message: "Teacher deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting teacher:", error);
+      res.status(500).json({ message: "Failed to delete teacher" });
+    }
+  });
+
+  // Report template management (admin)
+  app.get('/api/admin/report-templates', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getAllReportTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching report templates:", error);
+      res.status(500).json({ message: "Failed to fetch report templates" });
+    }
+  });
+
+  app.post('/api/admin/report-templates', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const templateData = req.body;
+      const template = await storage.createReportTemplate(templateData);
+      res.json(template);
+    } catch (error) {
+      console.error("Error creating report template:", error);
+      res.status(500).json({ message: "Failed to create report template" });
+    }
+  });
+
+  app.patch('/api/admin/report-templates/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      const template = await storage.updateReportTemplate(id, updateData);
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating report template:", error);
+      res.status(500).json({ message: "Failed to update report template" });
+    }
+  });
+
+  app.delete('/api/admin/report-templates/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteReportTemplate(id);
+      res.json({ message: "Report template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting report template:", error);
+      res.status(500).json({ message: "Failed to delete report template" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

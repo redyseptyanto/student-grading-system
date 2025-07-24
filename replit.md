@@ -33,6 +33,39 @@ Preferred communication style: Simple, everyday language.
 
 **Component Architecture**: Uses shadcn/ui as the base component system, providing consistent design patterns and accessibility features out of the box.
 
+## Admin Dashboard Features
+
+### Student Management (CRUD)
+- **Full CRUD Operations**: Create, read, update, and delete student records
+- **Advanced Filtering**: Filter by academic year, class, and search by name
+- **Status Management**: Toggle student active/inactive status with switches  
+- **Comprehensive Details**: Student contact information, parent details, and academic year tracking
+- **Bulk Operations**: Support for managing multiple students efficiently
+
+### Teacher Management (CRUD)
+- **Complete Teacher Profiles**: Full name, email, phone, and qualifications
+- **Subject Assignment**: Multi-select subject teaching capabilities
+- **Class Assignment**: Assign teachers to multiple classes with checkbox interface
+- **Performance Tracking**: View student count per teacher and class assignments
+- **Role-Based Access**: Secure admin-only access to teacher management
+
+### Report Card Template System
+- **Template Creation**: Design custom report card layouts with drag-and-drop components
+- **Multiple Layouts**: Standard, detailed, compact, and portfolio-style templates
+- **Configurable Sections**: Toggle student photo, radar charts, narrative comments, discipline reports, physical growth tracking, and teacher signatures
+- **Grading Period Support**: Flexible terms, semesters, quarters configuration
+- **Template Preview**: Live preview of report card appearance before deployment
+- **Template Duplication**: Copy and modify existing templates for efficiency
+
+### Report Card Components
+- **Student Information**: Automatic population of student details and class information
+- **Radar Chart Integration**: Side-by-side placement with student photos
+- **Narrative Comments**: Teacher commentary sections below visual elements
+- **Discipline Tracking**: Behavior, attendance, and punctuality reporting
+- **Physical Growth**: Height, weight, and BMI monitoring
+- **Digital Signatures**: Teacher e-signature with date validation
+- **Custom Headers/Footers**: School branding and administrative messaging
+
 ## Key Components
 
 ### Authentication System
