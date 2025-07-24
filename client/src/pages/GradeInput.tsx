@@ -184,7 +184,7 @@ export default function GradeInput() {
                           </FormControl>
                           <SelectContent>
                             {studentsLoading ? (
-                              <SelectItem value="" disabled>Loading students...</SelectItem>
+                              <SelectItem value="loading" disabled>Loading students...</SelectItem>
                             ) : (
                               students?.map((student: any) => (
                                 <SelectItem key={student.id} value={student.id.toString()}>
@@ -213,7 +213,7 @@ export default function GradeInput() {
                           </FormControl>
                           <SelectContent className="max-h-60">
                             {aspectsLoading ? (
-                              <SelectItem value="" disabled>Loading aspects...</SelectItem>
+                              <SelectItem value="loading" disabled>Loading aspects...</SelectItem>
                             ) : (
                               aspects?.map((aspect: string) => (
                                 <SelectItem key={aspect} value={aspect}>

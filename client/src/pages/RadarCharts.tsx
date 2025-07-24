@@ -219,7 +219,7 @@ export default function RadarCharts() {
                           </FormControl>
                           <SelectContent>
                             {studentsLoading ? (
-                              <SelectItem value="" disabled>Loading students...</SelectItem>
+                              <SelectItem value="loading" disabled>Loading students...</SelectItem>
                             ) : (
                               students?.map((student: any) => (
                                 <SelectItem key={student.id} value={student.id.toString()}>

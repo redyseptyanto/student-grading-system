@@ -120,7 +120,7 @@ export default function StudentProgress() {
               </SelectTrigger>
               <SelectContent>
                 {studentsLoading ? (
-                  <SelectItem value="" disabled>Loading students...</SelectItem>
+                  <SelectItem value="loading" disabled>Loading students...</SelectItem>
                 ) : (
                   students?.map((student: Student) => (
                     <SelectItem key={student.id} value={student.id.toString()}>
