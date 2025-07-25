@@ -314,7 +314,7 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">SuperAdmin Dashboard</h1>
         <p className="text-gray-600">Manage schools, users, and system-wide settings</p>
