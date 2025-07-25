@@ -44,7 +44,7 @@ export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAdd
     resolver: zodResolver(bulkStudentSchema),
     defaultValues: {
       classId: "",
-      groupId: "",
+      groupId: "no-group",
       academicYear: "2024-2025",
       studentsText: "",
     },
@@ -80,7 +80,7 @@ export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAdd
       const studentsData = parsedStudents.map(student => ({
         ...student,
         classId: parseInt(data.classId),
-        groupId: data.groupId ? parseInt(data.groupId) : null,
+        groupId: data.groupId && data.groupId !== "no-group" ? parseInt(data.groupId) : null,
         academicYear: data.academicYear,
         schoolId: 1, // Default school ID - you may want to make this dynamic
         isActive: true,
@@ -195,7 +195,7 @@ export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAdd
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No group</SelectItem>
+                        <SelectItem value="no-group">No group</SelectItem>
                         {(filteredGroups as any[]).map((group: any) => (
                           <SelectItem key={group.id} value={group.id.toString()}>
                             {group.name}
