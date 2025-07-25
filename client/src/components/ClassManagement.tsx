@@ -71,17 +71,16 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const [assignToGroupId, setAssignToGroupId] = useState<string>("no-group");
   const { toast } = useToast();
 
-  // Get groups for this specific class
-  const { data: classGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
-    queryKey: ['/api/student-groups', 'classId', classId],
-    queryFn: () => {
-      console.log('Fetching groups for classId:', classId);
-      return apiRequest('GET', `/api/student-groups?classId=${classId}`);
-    },
+  // Get all groups and filter by class on frontend for now
+  const { data: allGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
+    queryKey: ['/api/student-groups'],
   });
   
+  // Filter groups for this specific class
+  const classGroups = allGroups?.filter(group => group.classId === classId) || [];
+  
   // Debug log
-  console.log('ClassGroups data:', classGroups, 'Loading:', groupsLoading);
+  console.log('All groups:', allGroups, 'Class groups for', classId, ':', classGroups, 'Loading:', groupsLoading);
 
   // Get students in this class  
   const { data: classStudents, isLoading: studentsLoading } = useQuery<Student[]>({
@@ -96,7 +95,6 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/student-groups', 'classId', classId] });
       onGroupChange();
       setNewGroupName("");
       setNewGroupTeacherId("no-teacher");
@@ -120,7 +118,6 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/student-groups', 'classId', classId] });
       onGroupChange();
       setEditingInlineGroup(null);
       toast({ title: "Success", description: "Student group updated successfully" });
@@ -141,7 +138,6 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/student-groups', 'classId', classId] });
       onGroupChange();
       toast({ title: "Success", description: "Student group deleted successfully" });
     },
