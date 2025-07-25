@@ -1,6 +1,7 @@
 import {
   users,
   teachers,
+  teacherAssignments,
   parents,
   students,
   classes,
@@ -11,6 +12,8 @@ import {
   type UpsertUser,
   type Teacher,
   type InsertTeacher,
+  type TeacherAssignment,
+  type InsertTeacherAssignment,
   type Parent,
   type InsertParent,
   type Student,
@@ -117,7 +120,10 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({
         target: users.id,
         set: {
-          ...userData,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
         },
       })
@@ -132,15 +138,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTeacher(teacher: InsertTeacher): Promise<Teacher> {
-    const [newTeacher] = await db.insert(teachers).values([teacher]).returning();
+    const [newTeacher] = await db.insert(teachers).values(teacher).returning();
     return newTeacher;
   }
 
   async getTeachersByClass(classId: number): Promise<Teacher[]> {
+    // Get teachers through assignments that include this class
     return await db
-      .select()
+      .select({
+        id: teachers.id,
+        userId: teachers.userId,
+        fullName: teachers.fullName,
+        email: teachers.email,
+        phone: teachers.phone,
+        qualifications: teachers.qualifications,
+        isActive: teachers.isActive,
+        createdAt: teachers.createdAt,
+        updatedAt: teachers.updatedAt,
+      })
       .from(teachers)
-      .where(sql`${teachers.assignedClasses} @> ${JSON.stringify([classId])}`);
+      .innerJoin(teacherAssignments, eq(teachers.id, teacherAssignments.teacherId))
+      .where(sql`${teacherAssignments.assignedClasses} @> ${JSON.stringify([classId])}`);
   }
 
   // Parent operations
@@ -173,19 +191,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStudentsByTeacher(teacherId: number): Promise<Student[]> {
-    const teacher = await db.select().from(teachers).where(eq(teachers.id, teacherId));
-    if (!teacher[0] || !teacher[0].assignedClasses.length) {
+    // Get students through teacher assignments
+    const assignment = await db
+      .select()
+      .from(teacherAssignments)
+      .where(eq(teacherAssignments.teacherId, teacherId));
+    
+    if (!assignment[0] || !assignment[0].assignedClasses || assignment[0].assignedClasses.length === 0) {
       return [];
     }
     
     return await db
       .select()
       .from(students)
-      .where(inArray(students.classId, teacher[0].assignedClasses));
+      .where(inArray(students.classId, assignment[0].assignedClasses));
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
-    const [newStudent] = await db.insert(students).values([student]).returning();
+    const [newStudent] = await db.insert(students).values(student).returning();
     return newStudent;
   }
 
@@ -291,14 +314,9 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(students);
   }
 
-  async createStudentAdmin(data: any): Promise<Student> {
-    const [newStudent] = await db.insert(students).values([data]).returning();
+  async createStudentAdmin(data: InsertStudent): Promise<Student> {
+    const [newStudent] = await db.insert(students).values(data).returning();
     return newStudent;
-  }
-
-  async createStudentsBulk(studentsData: any[]): Promise<Student[]> {
-    const newStudents = await db.insert(students).values(studentsData).returning();
-    return newStudents;
   }
 
   async updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student> {
@@ -331,8 +349,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(teachers);
   }
 
-  async createTeacherAdmin(data: any): Promise<Teacher> {
-    const [newTeacher] = await db.insert(teachers).values([data]).returning();
+  async createTeacherAdmin(data: InsertTeacher): Promise<Teacher> {
+    const [newTeacher] = await db.insert(teachers).values(data).returning();
     return newTeacher;
   }
 
@@ -354,7 +372,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate> {
-    const [newTemplate] = await db.insert(reportTemplates).values([data]).returning();
+    const [newTemplate] = await db.insert(reportTemplates).values(data).returning();
     return newTemplate;
   }
 
@@ -382,7 +400,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSchool(data: InsertSchool): Promise<School> {
-    const [newSchool] = await db.insert(schools).values([data]).returning();
+    const [newSchool] = await db.insert(schools).values(data).returning();
     return newSchool;
   }
 

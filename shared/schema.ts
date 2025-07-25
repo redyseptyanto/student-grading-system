@@ -72,7 +72,7 @@ export const studentGroups = pgTable("student_groups", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
   classId: integer("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
-  teacherId: integer("teacher_id").references(() => teachers.id, { onDelete: "set null" }),
+  teacherAssignmentId: integer("teacher_assignment_id").references(() => teacherAssignments.id, { onDelete: "set null" }),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   description: text("description"),
   maxStudents: integer("max_students").default(10),
@@ -81,20 +81,34 @@ export const studentGroups = pgTable("student_groups", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Teachers table - with school reference
+// Teachers table - master teacher data
 export const teachers = pgTable("teachers", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().unique(), // Unique teacher ID from your system
   fullName: varchar("full_name").notNull(),
-  email: varchar("email"),
+  email: varchar("email").notNull().unique(),
   phone: varchar("phone"),
-  subjects: jsonb("subjects").$type<string[]>().default([]),
-  assignedClasses: jsonb("assigned_classes").$type<number[]>().default([]),
   qualifications: text("qualifications"),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Teacher assignments table - tracks teacher school assignments by academic year
+export const teacherAssignments = pgTable("teacher_assignments", {
+  id: serial("id").primaryKey(),
+  teacherId: integer("teacher_id").notNull().references(() => teachers.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  academicYear: varchar("academic_year").notNull(), // 2025/2026 format
+  subjects: jsonb("subjects").$type<string[]>().default([]),
+  assignedClasses: jsonb("assigned_classes").$type<number[]>().default([]),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // Ensure unique teacher per school per academic year
+  index("unique_teacher_school_year").on(table.teacherId, table.schoolId, table.academicYear),
+]);
 
 // Parents table - with school reference
 export const parents = pgTable("parents", {
@@ -183,16 +197,7 @@ export const usersRelations = relations(users, ({ one }) => ({
   }),
 }));
 
-export const teachersRelations = relations(teachers, ({ one }) => ({
-  user: one(users, {
-    fields: [teachers.userId],
-    references: [users.id],
-  }),
-  school: one(schools, {
-    fields: [teachers.schoolId],
-    references: [schools.id],
-  }),
-}));
+// teachersRelations is defined later with assignments
 
 export const parentsRelations = relations(parents, ({ one, many }) => ({
   user: one(users, {
@@ -239,15 +244,34 @@ export const studentGroupsRelations = relations(studentGroups, ({ one, many }) =
     fields: [studentGroups.classId],
     references: [classes.id],
   }),
-  teacher: one(teachers, {
-    fields: [studentGroups.teacherId],
-    references: [teachers.id],
+  teacherAssignment: one(teacherAssignments, {
+    fields: [studentGroups.teacherAssignmentId],
+    references: [teacherAssignments.id],
   }),
   school: one(schools, {
     fields: [studentGroups.schoolId],
     references: [schools.id],
   }),
   students: many(students),
+}));
+
+export const teachersRelations = relations(teachers, ({ one, many }) => ({
+  user: one(users, {
+    fields: [teachers.userId],
+    references: [users.id],
+  }),
+  assignments: many(teacherAssignments),
+}));
+
+export const teacherAssignmentsRelations = relations(teacherAssignments, ({ one }) => ({
+  teacher: one(teachers, {
+    fields: [teacherAssignments.teacherId],
+    references: [teachers.id],
+  }),
+  school: one(schools, {
+    fields: [teacherAssignments.schoolId],
+    references: [schools.id],
+  }),
 }));
 
 export const reportTemplatesRelations = relations(reportTemplates, ({ one }) => ({
@@ -304,6 +328,12 @@ export const insertReportTemplateSchema = createInsertSchema(reportTemplates).om
   updatedAt: true,
 });
 
+export const insertTeacherAssignmentSchema = createInsertSchema(teacherAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Grade input schema
 export const gradeInputSchema = z.object({
   studentId: z.number(),
@@ -335,6 +365,8 @@ export type InsertStudentGroup = z.infer<typeof insertStudentGroupSchema>;
 export type StudentGroup = typeof studentGroups.$inferSelect;
 export type InsertReportTemplate = z.infer<typeof insertReportTemplateSchema>;
 export type ReportTemplate = typeof reportTemplates.$inferSelect;
+export type InsertTeacherAssignment = z.infer<typeof insertTeacherAssignmentSchema>;
+export type TeacherAssignment = typeof teacherAssignments.$inferSelect;
 export type GradeInput = z.infer<typeof gradeInputSchema>;
 export type RadarChartConfig = z.infer<typeof radarChartConfigSchema>;
 
