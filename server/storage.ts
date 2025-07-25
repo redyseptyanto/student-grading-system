@@ -49,6 +49,7 @@ export interface IStorage {
   getStudentsByParent(parentId: number): Promise<Student[]>;
   getStudentsByTeacher(teacherId: number): Promise<Student[]>;
   createStudent(student: InsertStudent): Promise<Student>;
+  createStudentsBulk(studentsData: InsertStudent[]): Promise<Student[]>;
   updateStudentGrades(studentId: number, aspect: string, grades: number[]): Promise<Student>;
   
   // Class operations
@@ -185,6 +186,11 @@ export class DatabaseStorage implements IStorage {
     return newStudent;
   }
 
+  async createStudentsBulk(studentsData: InsertStudent[]): Promise<Student[]> {
+    const newStudents = await db.insert(students).values(studentsData).returning();
+    return newStudents;
+  }
+
   async updateStudentGrades(studentId: number, aspect: string, grades: number[]): Promise<Student> {
     const student = await this.getStudent(studentId);
     if (!student) {
@@ -280,6 +286,11 @@ export class DatabaseStorage implements IStorage {
   // Admin operations
   async getStudentsWithDetails(): Promise<Student[]> {
     return await db.select().from(students);
+  }
+
+  async createStudentAdmin(data: any): Promise<Student> {
+    const [newStudent] = await db.insert(students).values([data]).returning();
+    return newStudent;
   }
 
   async updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student> {

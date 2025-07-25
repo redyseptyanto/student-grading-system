@@ -13,8 +13,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Edit, Trash2, Filter, Users } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Filter, Users, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import BulkStudentAddDialog from "./BulkStudentAddDialog";
 
 const studentFormSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
@@ -34,6 +35,7 @@ export default function StudentManagement() {
   const [filterYear, setFilterYear] = useState<string>("all");
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -203,10 +205,20 @@ export default function StudentManagement() {
           <h2 className="text-2xl font-bold">Student Management</h2>
           <p className="text-gray-600">Manage all students across classes and academic years</p>
         </div>
-        <Button onClick={handleAdd} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Student
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleAdd} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add Student
+          </Button>
+          <Button 
+            onClick={() => setIsBulkDialogOpen(true)} 
+            variant="outline" 
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Bulk Add
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -449,6 +461,12 @@ export default function StudentManagement() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Student Add Dialog */}
+      <BulkStudentAddDialog 
+        isOpen={isBulkDialogOpen}
+        onClose={() => setIsBulkDialogOpen(false)}
+      />
     </div>
   );
 }

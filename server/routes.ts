@@ -447,6 +447,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/admin/students', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const studentData = req.body;
+      const student = await storage.createStudentAdmin(studentData);
+      res.json(student);
+    } catch (error) {
+      console.error("Error creating student:", error);
+      res.status(500).json({ message: "Failed to create student" });
+    }
+  });
+
+  app.post('/api/admin/students/bulk', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { studentsData } = req.body;
+      if (!Array.isArray(studentsData) || studentsData.length === 0) {
+        return res.status(400).json({ message: "studentsData must be a non-empty array" });
+      }
+      
+      const students = await storage.createStudentsBulk(studentsData);
+      res.json(students);
+    } catch (error) {
+      console.error("Error creating students in bulk:", error);
+      res.status(500).json({ message: "Failed to create students in bulk" });
+    }
+  });
+
   app.patch('/api/admin/students/:id', isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
