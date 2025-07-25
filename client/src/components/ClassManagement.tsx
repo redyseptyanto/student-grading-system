@@ -74,8 +74,14 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   // Get groups for this specific class
   const { data: classGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
     queryKey: ['/api/student-groups', 'classId', classId],
-    queryFn: () => apiRequest('GET', `/api/student-groups?classId=${classId}`),
+    queryFn: () => {
+      console.log('Fetching groups for classId:', classId);
+      return apiRequest('GET', `/api/student-groups?classId=${classId}`);
+    },
   });
+  
+  // Debug log
+  console.log('ClassGroups data:', classGroups, 'Loading:', groupsLoading);
 
   // Get students in this class  
   const { data: classStudents, isLoading: studentsLoading } = useQuery<Student[]>({
@@ -89,6 +95,8 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       return await apiRequest('POST', '/api/student-groups', data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/student-groups', 'classId', classId] });
       onGroupChange();
       setNewGroupName("");
       setNewGroupTeacherId("no-teacher");
@@ -111,6 +119,8 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       return await apiRequest('PUT', `/api/student-groups/${id}`, data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/student-groups', 'classId', classId] });
       onGroupChange();
       setEditingInlineGroup(null);
       toast({ title: "Success", description: "Student group updated successfully" });
@@ -130,6 +140,8 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       return await apiRequest('DELETE', `/api/student-groups/${id}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/student-groups', 'classId', classId] });
       onGroupChange();
       toast({ title: "Success", description: "Student group deleted successfully" });
     },
