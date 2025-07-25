@@ -32,7 +32,7 @@ export default function GradeInput() {
 
   // Redirect to home if not authenticated or not a teacher
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.role !== "teacher")) {
+    if (!isLoading && (!isAuthenticated || !(user as any)?.roles?.includes("teacher"))) {
       toast({
         title: "Unauthorized",
         description: "Only teachers can access grade input.",
@@ -142,6 +142,11 @@ export default function GradeInput() {
   if (isLoading) {
     return <GradeInputSkeleton />;
   }
+
+  // Debug: Show current user roles
+  console.log("Current user data:", user);
+  console.log("User roles:", (user as any)?.roles);
+  console.log("Has teacher role:", (user as any)?.roles?.includes("teacher"));
 
   if (!user || !(user as any).roles?.includes("teacher")) {
     return null;
