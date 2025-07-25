@@ -48,12 +48,26 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   roles: varchar("roles").array().default(["parent"]).notNull(), // Array of roles like ["admin", "teacher"]
-  schoolId: integer("school_id").references(() => schools.id),
+  schoolId: integer("school_id").references(() => schools.id), // Primary school for backward compatibility
   permissions: jsonb("permissions").$type<string[]>().default([]),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// User-School assignments table - for multi-school support
+export const userSchoolAssignments = pgTable("user_school_assignments", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  roleAtSchool: varchar("role_at_school").notNull(), // admin, teacher, parent
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // Ensure unique user-school-role combination
+  index("unique_user_school_role").on(table.userId, table.schoolId, table.roleAtSchool),
+]);
 
 // Classes table - with school reference
 export const classes = pgTable("classes", {
@@ -180,13 +194,15 @@ export const schoolsRelations = relations(schools, ({ many }) => ({
   classes: many(classes),
   studentGroups: many(studentGroups),
   reportTemplates: many(reportTemplates),
+  userAssignments: many(userSchoolAssignments),
 }));
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   school: one(schools, {
     fields: [users.schoolId],
     references: [schools.id],
   }),
+  schoolAssignments: many(userSchoolAssignments),
   teacher: one(teachers, {
     fields: [users.id],
     references: [teachers.userId],
@@ -194,6 +210,17 @@ export const usersRelations = relations(users, ({ one }) => ({
   parent: one(parents, {
     fields: [users.id],
     references: [parents.userId],
+  }),
+}));
+
+export const userSchoolAssignmentsRelations = relations(userSchoolAssignments, ({ one }) => ({
+  user: one(users, {
+    fields: [userSchoolAssignments.userId],
+    references: [users.id],
+  }),
+  school: one(schools, {
+    fields: [userSchoolAssignments.schoolId],
+    references: [schools.id],
   }),
 }));
 
@@ -334,6 +361,12 @@ export const insertTeacherAssignmentSchema = createInsertSchema(teacherAssignmen
   updatedAt: true,
 });
 
+export const insertUserSchoolAssignmentSchema = createInsertSchema(userSchoolAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Grade input schema
 export const gradeInputSchema = z.object({
   studentId: z.number(),
@@ -367,6 +400,8 @@ export type InsertReportTemplate = z.infer<typeof insertReportTemplateSchema>;
 export type ReportTemplate = typeof reportTemplates.$inferSelect;
 export type InsertTeacherAssignment = z.infer<typeof insertTeacherAssignmentSchema>;
 export type TeacherAssignment = typeof teacherAssignments.$inferSelect;
+export type InsertUserSchoolAssignment = z.infer<typeof insertUserSchoolAssignmentSchema>;
+export type UserSchoolAssignment = typeof userSchoolAssignments.$inferSelect;
 export type GradeInput = z.infer<typeof gradeInputSchema>;
 export type RadarChartConfig = z.infer<typeof radarChartConfigSchema>;
 

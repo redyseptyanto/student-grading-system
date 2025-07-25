@@ -744,6 +744,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Multi-school assignment endpoints
+  app.post("/api/superadmin/users/:id/school-assignments", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { schoolAssignments } = req.body;
+      await storage.assignUserToSchools(userId, schoolAssignments);
+      res.json({ message: "School assignments updated successfully" });
+    } catch (error) {
+      console.error("Error updating school assignments:", error);
+      res.status(500).json({ message: "Failed to update school assignments" });
+    }
+  });
+
   // SuperAdmin System Stats
   app.get("/api/superadmin/stats", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {

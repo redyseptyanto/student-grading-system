@@ -36,6 +36,11 @@ export default function SuperAdminDashboard() {
   
   const [schoolSearchTerm, setSchoolSearchTerm] = useState("");
   const [schoolStatusFilter, setSchoolStatusFilter] = useState("all");
+  
+  // Multi-school assignment states
+  const [schoolAssignmentDialogOpen, setSchoolAssignmentDialogOpen] = useState(false);
+  const [selectedUserForAssignment, setSelectedUserForAssignment] = useState<User | null>(null);
+  const [selectedSchoolAssignments, setSelectedSchoolAssignments] = useState<Array<{ schoolId: number; schoolName: string; role: string }>>([]);
 
   // Queries
   const { data: schools = [], isLoading: schoolsLoading } = useQuery({
@@ -213,6 +218,64 @@ export default function SuperAdminDashboard() {
 
   const handleRemoveRole = (userId: string, role: string) => {
     removeRoleMutation.mutate({ userId, role });
+  };
+
+  // School assignment mutation
+  const assignUserToSchoolsMutation = useMutation({
+    mutationFn: async ({ userId, schoolAssignments }: { userId: string; schoolAssignments: Array<{ schoolId: number; role: string }> }) => {
+      return await apiRequest("POST", `/api/superadmin/users/${userId}/school-assignments`, { schoolAssignments });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/users"] });
+      setSchoolAssignmentDialogOpen(false);
+      toast({ title: "Success", description: "School assignments updated successfully" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({ title: "Error", description: "Failed to update school assignments", variant: "destructive" });
+    },
+  });
+
+  const handleSchoolAssignmentSubmit = () => {
+    if (!selectedUserForAssignment) return;
+    
+    assignUserToSchoolsMutation.mutate({
+      userId: selectedUserForAssignment.id,
+      schoolAssignments: selectedSchoolAssignments,
+    });
+  };
+
+  const addSchoolAssignment = () => {
+    setSelectedSchoolAssignments([...selectedSchoolAssignments, { schoolId: 0, schoolName: "", role: "teacher" }]);
+  };
+
+  const removeSchoolAssignment = (index: number) => {
+    setSelectedSchoolAssignments(selectedSchoolAssignments.filter((_, i) => i !== index));
+  };
+
+  const updateSchoolAssignment = (index: number, field: "schoolId" | "role", value: string) => {
+    const updated = [...selectedSchoolAssignments];
+    if (field === "schoolId") {
+      const school = (schools as School[]).find(s => s.id === parseInt(value));
+      updated[index] = { 
+        ...updated[index], 
+        schoolId: parseInt(value), 
+        schoolName: school?.name || "" 
+      };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
+    setSelectedSchoolAssignments(updated);
   };
 
   const handleSchoolSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -737,26 +800,35 @@ export default function SuperAdminDashboard() {
                           {user.roles?.includes("superadmin") ? (
                             <Badge variant="outline">All Schools</Badge>
                           ) : (
-                            <Select
-                              value={user.schoolId?.toString() || ""}
-                              onValueChange={(schoolId) => 
-                                updateUserMutation.mutate({ 
-                                  id: user.id, 
-                                  data: { schoolId: parseInt(schoolId) } 
-                                })
-                              }
-                            >
-                              <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Select school" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(schools as School[]).map((school: School) => (
-                                  <SelectItem key={school.id} value={school.id.toString()}>
-                                    {school.name}
-                                  </SelectItem>
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap gap-1">
+                                {(user as any).assignedSchools?.slice(0, 2).map((assignment: any) => (
+                                  <Badge key={`${assignment.schoolId}-${assignment.role}`} variant="outline" className="text-xs">
+                                    {assignment.schoolName} ({assignment.role})
+                                  </Badge>
                                 ))}
-                              </SelectContent>
-                            </Select>
+                                {(user as any).assignedSchools?.length > 2 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{(user as any).assignedSchools.length - 2} more
+                                  </Badge>
+                                )}
+                                {!(user as any).assignedSchools?.length && (
+                                  <span className="text-sm text-gray-500">No schools assigned</span>
+                                )}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedUserForAssignment(user);
+                                  setSelectedSchoolAssignments((user as any).assignedSchools || []);
+                                  setSchoolAssignmentDialogOpen(true);
+                                }}
+                                className="text-xs h-6"
+                              >
+                                Manage Schools
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>
@@ -832,6 +904,93 @@ export default function SuperAdminDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* School Assignment Dialog */}
+      <Dialog open={schoolAssignmentDialogOpen} onOpenChange={setSchoolAssignmentDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage School Assignments</DialogTitle>
+            <DialogDescription>
+              Assign {selectedUserForAssignment?.firstName} {selectedUserForAssignment?.lastName} to schools with specific roles.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {selectedSchoolAssignments.map((assignment, index) => (
+              <div key={index} className="flex gap-2 items-center p-3 border rounded-lg">
+                <div className="flex-1">
+                  <Label className="text-sm">School</Label>
+                  <Select
+                    value={assignment.schoolId.toString()}
+                    onValueChange={(value) => updateSchoolAssignment(index, "schoolId", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select school" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(schools as School[]).map((school: School) => (
+                        <SelectItem key={school.id} value={school.id.toString()}>
+                          {school.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="w-32">
+                  <Label className="text-sm">Role</Label>
+                  <Select
+                    value={assignment.role}
+                    onValueChange={(value) => updateSchoolAssignment(index, "role", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="parent">Parent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => removeSchoolAssignment(index)}
+                  className="mt-6"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            
+            <Button
+              variant="outline"
+              onClick={addSchoolAssignment}
+              className="w-full"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add School Assignment
+            </Button>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSchoolAssignmentDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSchoolAssignmentSubmit}
+              disabled={assignUserToSchoolsMutation.isPending}
+            >
+              {assignUserToSchoolsMutation.isPending ? "Updating..." : "Update Assignments"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   studentGroups,
   reportTemplates,
   schools,
+  userSchoolAssignments,
   type User,
   type UpsertUser,
   type Teacher,
@@ -26,6 +27,8 @@ import {
   type InsertReportTemplate,
   type School,
   type InsertSchool,
+  type UserSchoolAssignment,
+  type InsertUserSchoolAssignment,
   type GradeInput,
 } from "@shared/schema";
 import { db } from "./db";
@@ -95,10 +98,11 @@ export interface IStorage {
   createSchool(data: InsertSchool): Promise<School>;
   updateSchool(id: number, data: Partial<School>): Promise<School>;
   deleteSchool(id: number): Promise<void>;
-  getAllUsersWithSchools(): Promise<(User & { school?: School })[]>;
+  getAllUsersWithSchools(): Promise<(User & { school?: School; assignedSchools?: Array<{ schoolId: number; schoolName: string; role: string }> })[]>;
   updateUserRoles(id: string, roles: string[], schoolId: number | null): Promise<User>;
   addUserRole(id: string, role: string): Promise<User>;
   removeUserRole(id: string, role: string): Promise<User>;
+  assignUserToSchools(userId: string, schoolAssignments: Array<{ schoolId: number; role: string }>): Promise<void>;
   getSystemStats(): Promise<{
     totalSchools: number;
     totalUsers: number;
@@ -548,8 +552,9 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schools).where(eq(schools.id, id));
   }
 
-  async getAllUsersWithSchools(): Promise<(User & { school?: School })[]> {
-    const result = await db
+  async getAllUsersWithSchools(): Promise<(User & { school?: School; assignedSchools?: Array<{ schoolId: number; schoolName: string; role: string }> })[]> {
+    // Get users with their primary school
+    const usersResult = await db
       .select({
         id: users.id,
         email: users.email,
@@ -567,7 +572,19 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .leftJoin(schools, eq(users.schoolId, schools.id));
 
-    return result.map(row => ({
+    // Get all school assignments for all users
+    const schoolAssignments = await db
+      .select({
+        userId: userSchoolAssignments.userId,
+        schoolId: userSchoolAssignments.schoolId,
+        roleAtSchool: userSchoolAssignments.roleAtSchool,
+        schoolName: schools.name,
+      })
+      .from(userSchoolAssignments)
+      .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
+      .where(eq(userSchoolAssignments.isActive, true));
+
+    return usersResult.map(row => ({
       id: row.id,
       email: row.email,
       firstName: row.firstName,
@@ -580,6 +597,13 @@ export class DatabaseStorage implements IStorage {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       school: row.schoolName ? { name: row.schoolName } as School : undefined,
+      assignedSchools: schoolAssignments
+        .filter(assignment => assignment.userId === row.id)
+        .map(assignment => ({
+          schoolId: assignment.schoolId,
+          schoolName: assignment.schoolName || 'Unknown School',
+          role: assignment.roleAtSchool,
+        })),
     }));
   }
 
@@ -615,6 +639,23 @@ export class DatabaseStorage implements IStorage {
     }
     
     return this.updateUserRoles(id, newRoles, user.schoolId);
+  }
+
+  async assignUserToSchools(userId: string, schoolAssignments: Array<{ schoolId: number; role: string }>): Promise<void> {
+    // Remove existing assignments for this user
+    await db.delete(userSchoolAssignments).where(eq(userSchoolAssignments.userId, userId));
+
+    // Add new assignments
+    if (schoolAssignments.length > 0) {
+      const assignmentData = schoolAssignments.map(assignment => ({
+        userId,
+        schoolId: assignment.schoolId,
+        roleAtSchool: assignment.role,
+        isActive: true,
+      }));
+      
+      await db.insert(userSchoolAssignments).values(assignmentData);
+    }
   }
 
   async getSystemStats(): Promise<{
