@@ -13,8 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Edit, Trash2, GraduationCap, Users, BookOpen, School, Calendar, Filter, X } from "lucide-react";
+import { Plus, Edit, Trash2, GraduationCap, Users, BookOpen, School, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import FilterBar from "@/components/ui/FilterBar";
 
 const teacherFormSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
@@ -209,87 +210,48 @@ export default function TeacherManagement() {
       </div>
 
       {/* Search and Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search teachers by name or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {filteredTeachers.length} of {teachers?.length || 0} teachers
-                </span>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Filters:</span>
-              </div>
-              
-              {/* School Filter */}
-              <div className="flex items-center gap-2">
-                <School className="h-4 w-4 text-gray-500" />
-                <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="All Schools" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL_SCHOOLS">All Schools</SelectItem>
-                    {schools?.map((school: any) => (
-                      <SelectItem key={school.id} value={school.name}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Academic Year Filter */}
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <Select value={selectedAcademicYear} onValueChange={setSelectedAcademicYear}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="All Years" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL_YEARS">All Years</SelectItem>
-                    {academicYears.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Clear Filters */}
-              {hasActiveFilters && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="flex items-center gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search teachers by name or email..."
+        filters={[
+          {
+            id: "school",
+            label: "School",
+            value: selectedSchool,
+            onChange: setSelectedSchool,
+            options: [
+              { value: "ALL_SCHOOLS", label: "All Schools" },
+              ...(schools?.map((school: any) => ({
+                value: school.name,
+                label: school.name
+              })) || [])
+            ],
+            placeholder: "All Schools",
+            icon: <School className="h-4 w-4 text-gray-500" />
+          },
+          {
+            id: "academicYear",
+            label: "Academic Year",
+            value: selectedAcademicYear,
+            onChange: setSelectedAcademicYear,
+            options: [
+              { value: "ALL_YEARS", label: "All Years" },
+              ...academicYears.map((year) => ({
+                value: year,
+                label: year
+              }))
+            ],
+            placeholder: "All Years",
+            icon: <Calendar className="h-4 w-4 text-gray-500" />
+          }
+        ]}
+        onClearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
+        resultCount={filteredTeachers.length}
+        totalCount={teachers?.length || 0}
+        itemName="teachers"
+      />
 
       {/* Teachers Table */}
       <Card>

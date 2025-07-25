@@ -13,9 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Edit, Trash2, Filter, Users, UserPlus } from "lucide-react";
+import { Plus, Edit, Trash2, Users, UserPlus, School, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BulkStudentAddDialog from "./BulkStudentAddDialog";
+import FilterBar from "@/components/ui/FilterBar";
 
 const studentFormSchema = z.object({
   nsp: z.string().optional(),
@@ -39,8 +40,8 @@ type StudentFormData = z.infer<typeof studentFormSchema>;
 
 export default function StudentManagement() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterClass, setFilterClass] = useState<string>("all");
-  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterClass, setFilterClass] = useState<string>("ALL_CLASSES");
+  const [filterYear, setFilterYear] = useState<string>("ALL_YEARS");
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
@@ -216,16 +217,26 @@ export default function StudentManagement() {
     setIsDialogOpen(true);
   };
 
+  // Get unique academic years
+  const academicYears = [...new Set(students?.map((s: any) => s.academicYear).filter(Boolean))] || [];
+
   // Filter students
   const filteredStudents = students?.filter((student: any) => {
     const matchesSearch = student.fullName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = filterClass === "all" || student.classId?.toString() === filterClass;
-    const matchesYear = filterYear === "all" || student.academicYear === filterYear;
+    const matchesClass = filterClass === "ALL_CLASSES" || student.classId?.toString() === filterClass;
+    const matchesYear = filterYear === "ALL_YEARS" || student.academicYear === filterYear;
     return matchesSearch && matchesClass && matchesYear;
   }) || [];
 
-  // Get unique academic years
-  const academicYears = [...new Set(students?.map((s: any) => s.academicYear).filter(Boolean))] || [];
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterClass("ALL_CLASSES");
+    setFilterYear("ALL_YEARS");
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || (filterClass && filterClass !== "ALL_CLASSES") || (filterYear && filterYear !== "ALL_YEARS");
 
   return (
     <div className="space-y-6">
@@ -251,60 +262,49 @@ export default function StudentManagement() {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filters & Search
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search students..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={filterClass} onValueChange={setFilterClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {classes?.map((cls: any) => (
-                  <SelectItem key={cls.id} value={cls.id.toString()}>
-                    {cls.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by year" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Years</SelectItem>
-                {academicYears.map((year: string) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
-                {filteredStudents.length} students
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search and Filters */}
+      <FilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search students by name..."
+        filters={[
+          {
+            id: "class",
+            label: "Class",
+            value: filterClass,
+            onChange: setFilterClass,
+            options: [
+              { value: "ALL_CLASSES", label: "All Classes" },
+              ...(classes?.map((cls: any) => ({
+                value: cls.id.toString(),
+                label: cls.name
+              })) || [])
+            ],
+            placeholder: "All Classes",
+            icon: <School className="h-4 w-4 text-gray-500" />
+          },
+          {
+            id: "academicYear",
+            label: "Academic Year",
+            value: filterYear,
+            onChange: setFilterYear,
+            options: [
+              { value: "ALL_YEARS", label: "All Years" },
+              ...academicYears.map((year: string) => ({
+                value: year,
+                label: year
+              }))
+            ],
+            placeholder: "All Years",
+            icon: <Calendar className="h-4 w-4 text-gray-500" />
+          }
+        ]}
+        onClearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
+        resultCount={filteredStudents.length}
+        totalCount={students?.length || 0}
+        itemName="students"
+      />
 
       {/* Students Table */}
       <Card>

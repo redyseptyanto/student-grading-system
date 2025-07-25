@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import FilterBar from "@/components/ui/FilterBar";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,8 +50,7 @@ import {
   Settings,
   School,
   BookOpen,
-  Search,
-  Filter,
+  Calendar,
 } from "lucide-react";
 
 // ClassGroupManager Component
@@ -615,11 +615,11 @@ export default function ClassManagement() {
   
   // Filter states
   const [classSearchTerm, setClassSearchTerm] = useState("");
-  const [classAcademicYearFilter, setClassAcademicYearFilter] = useState("all-years");
-  const [classSchoolFilter, setClassSchoolFilter] = useState("all-schools");
+  const [classAcademicYearFilter, setClassAcademicYearFilter] = useState("ALL_YEARS");
+  const [classSchoolFilter, setClassSchoolFilter] = useState("ALL_SCHOOLS");
   const [groupSearchTerm, setGroupSearchTerm] = useState("");
-  const [groupSchoolFilter, setGroupSchoolFilter] = useState("all-schools");
-  const [groupClassFilter, setGroupClassFilter] = useState("all-classes");
+  const [groupSchoolFilter, setGroupSchoolFilter] = useState("ALL_SCHOOLS");
+  const [groupClassFilter, setGroupClassFilter] = useState("ALL_CLASSES");
 
   // Fetch data
   const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
@@ -822,36 +822,40 @@ export default function ClassManagement() {
     return school ? school.name : 'Unknown School';
   };
 
+  // Get unique academic years from classes
+  const academicYears = Array.from(new Set(classes.map((c: Class) => c.academicYear)));
+
   // Filter functions
   const filteredClasses = classes.filter((classData: Class) => {
     const matchesSearch = classData.name.toLowerCase().includes(classSearchTerm.toLowerCase());
-    const matchesAcademicYear = classAcademicYearFilter === "all-years" || classData.academicYear === classAcademicYearFilter;
-    const matchesSchool = classSchoolFilter === "all-schools" || classData.schoolId.toString() === classSchoolFilter;
+    const matchesAcademicYear = classAcademicYearFilter === "ALL_YEARS" || classData.academicYear === classAcademicYearFilter;
+    const matchesSchool = classSchoolFilter === "ALL_SCHOOLS" || classData.schoolId.toString() === classSchoolFilter;
     return matchesSearch && matchesAcademicYear && matchesSchool;
   });
 
   const filteredGroups = studentGroups.filter((group: StudentGroup) => {
     const matchesSearch = group.name.toLowerCase().includes(groupSearchTerm.toLowerCase());
-    const matchesSchool = groupSchoolFilter === "all-schools" || group.schoolId.toString() === groupSchoolFilter;
-    const matchesClass = groupClassFilter === "all-classes" || group.classId.toString() === groupClassFilter;
+    const matchesSchool = groupSchoolFilter === "ALL_SCHOOLS" || group.schoolId.toString() === groupSchoolFilter;
+    const matchesClass = groupClassFilter === "ALL_CLASSES" || group.classId.toString() === groupClassFilter;
     return matchesSearch && matchesSchool && matchesClass;
   });
-
-  // Get unique academic years from classes
-  const academicYears = Array.from(new Set(classes.map((c: Class) => c.academicYear)));
 
   // Clear filters functions
   const clearClassFilters = () => {
     setClassSearchTerm("");
-    setClassAcademicYearFilter("all-years");
-    setClassSchoolFilter("all-schools");
+    setClassAcademicYearFilter("ALL_YEARS");
+    setClassSchoolFilter("ALL_SCHOOLS");
   };
 
   const clearGroupFilters = () => {
     setGroupSearchTerm("");
-    setGroupSchoolFilter("all-schools");
-    setGroupClassFilter("all-classes");
+    setGroupSchoolFilter("ALL_SCHOOLS");
+    setGroupClassFilter("ALL_CLASSES");
   };
+
+  // Check if any filters are active
+  const hasActiveClassFilters = classSearchTerm || (classAcademicYearFilter && classAcademicYearFilter !== "ALL_YEARS") || (classSchoolFilter && classSchoolFilter !== "ALL_SCHOOLS");
+  const hasActiveGroupFilters = groupSearchTerm || (groupSchoolFilter && groupSchoolFilter !== "ALL_SCHOOLS") || (groupClassFilter && groupClassFilter !== "ALL_CLASSES");
 
   if (classesLoading || teachersLoading || schoolsLoading) {
     return <div className="flex justify-center p-8">Loading...</div>;
@@ -947,59 +951,48 @@ export default function ClassManagement() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Class Filters */}
-              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="classSearch" className="text-sm font-medium">Search:</Label>
-                  <Input
-                    id="classSearch"
-                    placeholder="Search by class name..."
-                    value={classSearchTerm}
-                    onChange={(e) => setClassSearchTerm(e.target.value)}
-                    className="w-48"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="classSchoolFilter" className="text-sm font-medium">School:</Label>
-                  <Select value={classSchoolFilter} onValueChange={setClassSchoolFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="All Schools" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all-schools">All Schools</SelectItem>
-                      {schools.map((school: School) => (
-                        <SelectItem key={school.id} value={school.id.toString()}>
-                          {school.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="classAcademicYearFilter" className="text-sm font-medium">Academic Year:</Label>
-                  <Select value={classAcademicYearFilter} onValueChange={setClassAcademicYearFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="All Years" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all-years">All Years</SelectItem>
-                      {academicYears.map((year: string) => (
-                        <SelectItem key={year} value={year}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={clearClassFilters}
-                  className="ml-auto"
-                >
-                  Clear Filters
-                </Button>
-              </div>
+              <FilterBar
+                searchTerm={classSearchTerm}
+                onSearchChange={setClassSearchTerm}
+                searchPlaceholder="Search classes by name..."
+                filters={[
+                  {
+                    id: "school",
+                    label: "School",
+                    value: classSchoolFilter,
+                    onChange: setClassSchoolFilter,
+                    options: [
+                      { value: "ALL_SCHOOLS", label: "All Schools" },
+                      ...(schools.map((school: School) => ({
+                        value: school.id.toString(),
+                        label: school.name
+                      })))
+                    ],
+                    placeholder: "All Schools",
+                    icon: <School className="h-4 w-4 text-gray-500" />
+                  },
+                  {
+                    id: "academicYear",
+                    label: "Academic Year",
+                    value: classAcademicYearFilter,
+                    onChange: setClassAcademicYearFilter,
+                    options: [
+                      { value: "ALL_YEARS", label: "All Years" },
+                      ...academicYears.map((year: string) => ({
+                        value: year,
+                        label: year
+                      }))
+                    ],
+                    placeholder: "All Years",
+                    icon: <Calendar className="h-4 w-4 text-gray-500" />
+                  }
+                ]}
+                onClearFilters={clearClassFilters}
+                hasActiveFilters={hasActiveClassFilters}
+                resultCount={filteredClasses.length}
+                totalCount={classes.length}
+                itemName="classes"
+              />
 
               <Table>
                 <TableHeader>
@@ -1178,59 +1171,48 @@ export default function ClassManagement() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Group Filters */}
-              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="groupSearch" className="text-sm font-medium">Search:</Label>
-                  <Input
-                    id="groupSearch"
-                    placeholder="Search by group name..."
-                    value={groupSearchTerm}
-                    onChange={(e) => setGroupSearchTerm(e.target.value)}
-                    className="w-48"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="groupSchoolFilter" className="text-sm font-medium">School:</Label>
-                  <Select value={groupSchoolFilter} onValueChange={setGroupSchoolFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="All Schools" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all-schools">All Schools</SelectItem>
-                      {schools.map((school: School) => (
-                        <SelectItem key={school.id} value={school.id.toString()}>
-                          {school.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="groupClassFilter" className="text-sm font-medium">Class:</Label>
-                  <Select value={groupClassFilter} onValueChange={setGroupClassFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="All Classes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all-classes">All Classes</SelectItem>
-                      {classes.map((classData: Class) => (
-                        <SelectItem key={classData.id} value={classData.id.toString()}>
-                          {classData.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={clearGroupFilters}
-                  className="ml-auto"
-                >
-                  Clear Filters
-                </Button>
-              </div>
+              <FilterBar
+                searchTerm={groupSearchTerm}
+                onSearchChange={setGroupSearchTerm}
+                searchPlaceholder="Search groups by name..."
+                filters={[
+                  {
+                    id: "school",
+                    label: "School",
+                    value: groupSchoolFilter,
+                    onChange: setGroupSchoolFilter,
+                    options: [
+                      { value: "ALL_SCHOOLS", label: "All Schools" },
+                      ...(schools.map((school: School) => ({
+                        value: school.id.toString(),
+                        label: school.name
+                      })))
+                    ],
+                    placeholder: "All Schools",
+                    icon: <School className="h-4 w-4 text-gray-500" />
+                  },
+                  {
+                    id: "class",
+                    label: "Class",
+                    value: groupClassFilter,
+                    onChange: setGroupClassFilter,
+                    options: [
+                      { value: "ALL_CLASSES", label: "All Classes" },
+                      ...(classes.map((classData: Class) => ({
+                        value: classData.id.toString(),
+                        label: classData.name
+                      })))
+                    ],
+                    placeholder: "All Classes",
+                    icon: <BookOpen className="h-4 w-4 text-gray-500" />
+                  }
+                ]}
+                onClearFilters={clearGroupFilters}
+                hasActiveFilters={hasActiveGroupFilters}
+                resultCount={filteredGroups.length}
+                totalCount={studentGroups.length}
+                itemName="groups"
+              />
 
               {groupsLoading ? (
                 <div className="flex justify-center p-4">Loading groups...</div>
