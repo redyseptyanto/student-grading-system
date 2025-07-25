@@ -8,6 +8,15 @@ GradeWise is a comprehensive kindergarten grading and reporting system built wit
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (January 2025)
+
+### Enhanced Student Management System
+- **Expanded Student Database Schema**: Added comprehensive student fields including NSP, NIS, nickname, gender, school code, absence tracking, and flexible status management
+- **Updated Student Management UI**: Complete redesign of student form with organized grid layout and comprehensive field validation
+- **Enhanced Student List Table**: Now displays all new fields (NSP, NIS, Full Name, Nickname, Gender, Class, Group, School Code, Academic Year, No Absence, Status)
+- **Improved Data Collection**: Forms now capture complete student information required for official school records
+- **Status Management**: Added flexible status system (active, inactive, graduated, transferred) for better student lifecycle tracking
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -106,8 +115,9 @@ Preferred communication style: Simple, everyday language.
 - **Users**: Core user information with role-based access
 - **Teachers**: Extended teacher profiles with class assignments
 - **Parents**: Parent profiles linked to students
-- **Students**: Student information with JSONB grade storage
+- **Students**: Comprehensive student profiles with NSP, NIS, nickname, gender, school code, absence tracking, and status management
 - **Classes**: Class management and organization
+- **Student Groups**: Group management within classes for better organization
 - **Sessions**: Persistent session storage for authentication
 
 ### Grade Management

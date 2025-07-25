@@ -18,9 +18,16 @@ import { useToast } from "@/hooks/use-toast";
 import BulkStudentAddDialog from "./BulkStudentAddDialog";
 
 const studentFormSchema = z.object({
+  nsp: z.string().optional(),
+  nis: z.string().optional(),
+  noAbsence: z.number().default(0),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  classId: z.string().min(1, "Please select a class"),
+  nickname: z.string().optional(),
+  gender: z.string().optional(),
+  schoolCode: z.string().optional(),
   academicYear: z.string().min(1, "Academic year is required"),
+  classId: z.string().min(1, "Please select a class"),
+  status: z.string().default("active"),
   dateOfBirth: z.string().optional(),
   parentContact: z.string().optional(),
   address: z.string().optional(),
@@ -52,9 +59,16 @@ export default function StudentManagement() {
   const form = useForm<StudentFormData>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
+      nsp: "",
+      nis: "",
+      noAbsence: 0,
       fullName: "",
-      classId: "",
+      nickname: "",
+      gender: "",
+      schoolCode: "",
       academicYear: "2024-2025",
+      classId: "",
+      status: "active",
       dateOfBirth: "",
       parentContact: "",
       address: "",
@@ -169,9 +183,16 @@ export default function StudentManagement() {
   const handleEdit = (student: any) => {
     setEditingStudent(student);
     form.reset({
-      fullName: student.fullName,
-      classId: student.classId?.toString() || "",
+      nsp: student.nsp || "",
+      nis: student.nis || "",
+      noAbsence: student.noAbsence || 0,
+      fullName: student.fullName || "",
+      nickname: student.nickname || "",
+      gender: student.gender || "",
+      schoolCode: student.schoolCode || "",
       academicYear: student.academicYear || "2024-2025",
+      classId: student.classId?.toString() || "",
+      status: student.status || "active",
       dateOfBirth: student.dateOfBirth || "",
       parentContact: student.parentContact || "",
       address: student.address || "",
@@ -297,26 +318,37 @@ export default function StudentManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>NSP</TableHead>
+                    <TableHead>NIS</TableHead>
+                    <TableHead>Full Name</TableHead>
+                    <TableHead>Nickname</TableHead>
+                    <TableHead>Gender</TableHead>
                     <TableHead>Class</TableHead>
+                    <TableHead>Group</TableHead>
+                    <TableHead>School Code</TableHead>
                     <TableHead>Academic Year</TableHead>
+                    <TableHead>No Absence</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Contact</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredStudents.map((student: any) => (
                     <TableRow key={student.id}>
-                      <TableCell className="font-medium">
-                        {student.fullName}
-                      </TableCell>
+                      <TableCell>{student.nsp || "-"}</TableCell>
+                      <TableCell>{student.nis || "-"}</TableCell>
+                      <TableCell className="font-medium">{student.fullName}</TableCell>
+                      <TableCell>{student.nickname || "-"}</TableCell>
+                      <TableCell>{student.gender || "-"}</TableCell>
                       <TableCell>
                         {classes?.find((c: any) => c.id === student.classId)?.name || 'Unassigned'}
                       </TableCell>
                       <TableCell>
-                        {student.academicYear || '2024-2025'}
+                        {student.groupId ? `Group ${student.groupId}` : "-"}
                       </TableCell>
+                      <TableCell>{student.schoolCode || "-"}</TableCell>
+                      <TableCell>{student.academicYear || '2024-2025'}</TableCell>
+                      <TableCell>{student.noAbsence || 0}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Switch
@@ -329,12 +361,9 @@ export default function StudentManagement() {
                             }
                           />
                           <Badge variant={student.isActive !== false ? "default" : "secondary"}>
-                            {student.isActive !== false ? "Active" : "Inactive"}
+                            {student.status || (student.isActive !== false ? "Active" : "Inactive")}
                           </Badge>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {student.parentContact || "Not provided"}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -366,7 +395,7 @@ export default function StudentManagement() {
 
       {/* Add/Edit Student Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingStudent ? "Edit Student" : "Add New Student"}
@@ -380,73 +409,232 @@ export default function StudentManagement() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter student's full name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="classId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Class</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="nsp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>NSP</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a class" />
-                        </SelectTrigger>
+                        <Input placeholder="Student NSP number" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        {classesLoading ? (
-                          <SelectItem value="loading" disabled>Loading classes...</SelectItem>
-                        ) : (
-                          classes?.map((cls: any) => (
-                            <SelectItem key={cls.id} value={cls.id.toString()}>
-                              {cls.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="nis"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>NIS</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Student NIS number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name*</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter student's full name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="nickname"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nickname</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Student's nickname" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="schoolCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>School Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="School identifier code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="classId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Class*</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a class" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {classesLoading ? (
+                            <SelectItem value="loading" disabled>Loading classes...</SelectItem>
+                          ) : (
+                            classes?.map((cls: any) => (
+                              <SelectItem key={cls.id} value={cls.id.toString()}>
+                                {cls.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="academicYear"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Academic Year*</FormLabel>
+                      <FormControl>
+                        <Input placeholder="2024-2025" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="graduated">Graduated</SelectItem>
+                          <SelectItem value="transferred">Transferred</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="noAbsence"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>No Absence</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="0" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="parentContact"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Parent Contact</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Parent phone or email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="academicYear"
+                name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Academic Year</FormLabel>
+                    <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Input placeholder="2024-2025" {...field} />
+                      <Input placeholder="Student's home address" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="parentContact"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parent Contact</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Parent phone or email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
               <DialogFooter>
                 <Button type="submit" disabled={createStudentMutation.isPending || updateStudentMutation.isPending}>
                   {createStudentMutation.isPending || updateStudentMutation.isPending

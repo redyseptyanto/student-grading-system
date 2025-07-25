@@ -106,13 +106,22 @@ export const parents = pgTable("parents", {
 // Students table - with school and group reference
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
-  fullName: varchar("full_name").notNull(),
-  classId: integer("class_id").references(() => classes.id),
-  groupId: integer("group_id").references(() => studentGroups.id, { onDelete: "set null" }),
+  nsp: varchar("nsp"), // NSP - varchar
+  nis: varchar("nis"), // NIS - varchar
+  noAbsence: integer("no_absence").default(0), // No Absence - int
+  fullName: varchar("full_name").notNull(), // Fullname - varchar
+  nickname: varchar("nickname"), // Nickname - varchar
+  gender: varchar("gender"), // Gender - varchar
+  schoolCode: varchar("school_code"), // School Code - varchar
+  academicYear: varchar("academic_year").default("2024-2025"), // Academic Year - varchar
+  classId: integer("class_id").references(() => classes.id), // Class - will be derived from classId
+  groupId: integer("group_id").references(() => studentGroups.id, { onDelete: "set null" }), // Group - will be derived from groupId
+  status: varchar("status").default("active"), // Status - varchar (active/inactive/graduated/transferred)
+  
+  // Existing fields
   parentId: integer("parent_id").references(() => parents.id),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   grades: jsonb("grades").$type<Record<string, number[]>>().default({}),
-  academicYear: varchar("academic_year").default("2024-2025"),
   dateOfBirth: varchar("date_of_birth"),
   parentContact: varchar("parent_contact"),
   address: text("address"),
