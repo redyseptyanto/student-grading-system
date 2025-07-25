@@ -48,6 +48,8 @@ import {
   Settings,
   School,
   BookOpen,
+  Search,
+  Filter,
 } from "lucide-react";
 
 interface Class {
@@ -80,6 +82,14 @@ interface Teacher {
   email: string;
 }
 
+interface School {
+  id: number;
+  name: string;
+  address: string;
+  principalName: string;
+  isActive: boolean;
+}
+
 export default function ClassManagement() {
   const { toast } = useToast();
   const [isCreateClassOpen, setIsCreateClassOpen] = useState(false);
@@ -87,17 +97,29 @@ export default function ClassManagement() {
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [editingGroup, setEditingGroup] = useState<StudentGroup | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  
+  // Filter states
+  const [classSearchTerm, setClassSearchTerm] = useState("");
+  const [classAcademicYearFilter, setClassAcademicYearFilter] = useState("");
+  const [classSchoolFilter, setClassSchoolFilter] = useState("");
+  const [groupSearchTerm, setGroupSearchTerm] = useState("");
+  const [groupSchoolFilter, setGroupSchoolFilter] = useState("");
+  const [groupClassFilter, setGroupClassFilter] = useState("");
 
   // Fetch data
-  const { data: classes = [], isLoading: classesLoading } = useQuery({
+  const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
   });
 
-  const { data: teachers = [], isLoading: teachersLoading } = useQuery({
+  const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
     queryKey: ['/api/admin/teachers'],
   });
 
-  const { data: studentGroups = [], isLoading: groupsLoading } = useQuery({
+  const { data: schools = [], isLoading: schoolsLoading } = useQuery<School[]>({
+    queryKey: ['/api/superadmin/schools'],
+  });
+
+  const { data: studentGroups = [], isLoading: groupsLoading } = useQuery<StudentGroup[]>({
     queryKey: ['/api/student-groups', selectedClassId],
     queryFn: async () => {
       const params = selectedClassId ? `?classId=${selectedClassId}` : '';
@@ -298,7 +320,43 @@ export default function ClassManagement() {
     return classData ? classData.name : 'Unknown Class';
   };
 
-  if (classesLoading || teachersLoading) {
+  const getSchoolName = (schoolId: number) => {
+    const school = schools.find((s: School) => s.id === schoolId);
+    return school ? school.name : 'Unknown School';
+  };
+
+  // Filter functions
+  const filteredClasses = classes.filter((classData: Class) => {
+    const matchesSearch = classData.name.toLowerCase().includes(classSearchTerm.toLowerCase());
+    const matchesAcademicYear = !classAcademicYearFilter || classData.academicYear === classAcademicYearFilter;
+    const matchesSchool = !classSchoolFilter || classData.schoolId.toString() === classSchoolFilter;
+    return matchesSearch && matchesAcademicYear && matchesSchool;
+  });
+
+  const filteredGroups = studentGroups.filter((group: StudentGroup) => {
+    const matchesSearch = group.name.toLowerCase().includes(groupSearchTerm.toLowerCase());
+    const matchesSchool = !groupSchoolFilter || group.schoolId.toString() === groupSchoolFilter;
+    const matchesClass = !groupClassFilter || group.classId.toString() === groupClassFilter;
+    return matchesSearch && matchesSchool && matchesClass;
+  });
+
+  // Get unique academic years from classes
+  const academicYears = Array.from(new Set(classes.map((c: Class) => c.academicYear)));
+
+  // Clear filters functions
+  const clearClassFilters = () => {
+    setClassSearchTerm("");
+    setClassAcademicYearFilter("");
+    setClassSchoolFilter("");
+  };
+
+  const clearGroupFilters = () => {
+    setGroupSearchTerm("");
+    setGroupSchoolFilter("");
+    setGroupClassFilter("");
+  };
+
+  if (classesLoading || teachersLoading || schoolsLoading) {
     return <div className="flex justify-center p-8">Loading...</div>;
   }
 
@@ -323,7 +381,7 @@ export default function ClassManagement() {
                 <div>
                   <CardTitle>Class Management</CardTitle>
                   <CardDescription>
-                    Create and manage classes for your school
+                    Create and manage classes for your school ({filteredClasses.length} of {classes.length} classes)
                   </CardDescription>
                 </div>
                 <Dialog open={isCreateClassOpen} onOpenChange={setIsCreateClassOpen}>
@@ -392,10 +450,65 @@ export default function ClassManagement() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Class Filters */}
+              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="classSearch" className="text-sm font-medium">Search:</Label>
+                  <Input
+                    id="classSearch"
+                    placeholder="Search by class name..."
+                    value={classSearchTerm}
+                    onChange={(e) => setClassSearchTerm(e.target.value)}
+                    className="w-48"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="classSchoolFilter" className="text-sm font-medium">School:</Label>
+                  <Select value={classSchoolFilter} onValueChange={setClassSchoolFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="All Schools" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Schools</SelectItem>
+                      {schools.map((school: School) => (
+                        <SelectItem key={school.id} value={school.id.toString()}>
+                          {school.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="classAcademicYearFilter" className="text-sm font-medium">Academic Year:</Label>
+                  <Select value={classAcademicYearFilter} onValueChange={setClassAcademicYearFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="All Years" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Years</SelectItem>
+                      {academicYears.map((year: string) => (
+                        <SelectItem key={year} value={year}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={clearClassFilters}
+                  className="ml-auto"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Class Name</TableHead>
+                    <TableHead>School</TableHead>
                     <TableHead>Academic Year</TableHead>
                     <TableHead>Capacity</TableHead>
                     <TableHead>Status</TableHead>
@@ -403,11 +516,12 @@ export default function ClassManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {classes.map((classData: Class) => (
+                  {filteredClasses.map((classData: Class) => (
                     <TableRow key={classData.id}>
                       <TableCell className="font-medium">
                         {classData.name}
                       </TableCell>
+                      <TableCell>{getSchoolName(classData.schoolId)}</TableCell>
                       <TableCell>{classData.academicYear}</TableCell>
                       <TableCell>{classData.capacity}</TableCell>
                       <TableCell>
@@ -449,7 +563,7 @@ export default function ClassManagement() {
                 <div>
                   <CardTitle>Student Groups</CardTitle>
                   <CardDescription>
-                    Manage student groups within classes
+                    Manage student groups within classes ({filteredGroups.length} of {studentGroups.length} groups)
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -567,6 +681,60 @@ export default function ClassManagement() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Group Filters */}
+              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="groupSearch" className="text-sm font-medium">Search:</Label>
+                  <Input
+                    id="groupSearch"
+                    placeholder="Search by group name..."
+                    value={groupSearchTerm}
+                    onChange={(e) => setGroupSearchTerm(e.target.value)}
+                    className="w-48"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="groupSchoolFilter" className="text-sm font-medium">School:</Label>
+                  <Select value={groupSchoolFilter} onValueChange={setGroupSchoolFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="All Schools" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Schools</SelectItem>
+                      {schools.map((school: School) => (
+                        <SelectItem key={school.id} value={school.id.toString()}>
+                          {school.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="groupClassFilter" className="text-sm font-medium">Class:</Label>
+                  <Select value={groupClassFilter} onValueChange={setGroupClassFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="All Classes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Classes</SelectItem>
+                      {classes.map((classData: Class) => (
+                        <SelectItem key={classData.id} value={classData.id.toString()}>
+                          {classData.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={clearGroupFilters}
+                  className="ml-auto"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+
               {groupsLoading ? (
                 <div className="flex justify-center p-4">Loading groups...</div>
               ) : (
@@ -574,6 +742,7 @@ export default function ClassManagement() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Group Name</TableHead>
+                      <TableHead>School</TableHead>
                       <TableHead>Class</TableHead>
                       <TableHead>Assigned Teacher</TableHead>
                       <TableHead>Max Students</TableHead>
@@ -582,11 +751,12 @@ export default function ClassManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {studentGroups.map((group: StudentGroup) => (
+                    {filteredGroups.map((group: StudentGroup) => (
                       <TableRow key={group.id}>
                         <TableCell className="font-medium">
                           {group.name}
                         </TableCell>
+                        <TableCell>{getSchoolName(group.schoolId)}</TableCell>
                         <TableCell>{getClassName(group.classId)}</TableCell>
                         <TableCell>{getTeacherName(group.teacherId)}</TableCell>
                         <TableCell>{group.maxStudents}</TableCell>
