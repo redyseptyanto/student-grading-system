@@ -293,6 +293,11 @@ export class DatabaseStorage implements IStorage {
     return newStudent;
   }
 
+  async createStudentsBulk(studentsData: any[]): Promise<Student[]> {
+    const newStudents = await db.insert(students).values(studentsData).returning();
+    return newStudents;
+  }
+
   async updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student> {
     const [updatedStudent] = await db
       .update(students)

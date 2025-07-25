@@ -52,6 +52,327 @@ import {
   Filter,
 } from "lucide-react";
 
+// ClassGroupManager Component
+interface ClassGroupManagerProps {
+  classId: number;
+  className: string;
+  teachers: Teacher[];
+  onGroupChange: () => void;
+}
+
+function ClassGroupManager({ classId, className, teachers, onGroupChange }: ClassGroupManagerProps) {
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupTeacherId, setNewGroupTeacherId] = useState<string>("no-teacher");
+  const [newGroupDescription, setNewGroupDescription] = useState("");
+  const [newGroupMaxStudents, setNewGroupMaxStudents] = useState("10");
+  const [editingInlineGroup, setEditingInlineGroup] = useState<StudentGroup | null>(null);
+  const { toast } = useToast();
+
+  // Get groups for this specific class
+  const { data: classGroups, isLoading: groupsLoading } = useQuery({
+    queryKey: ['/api/student-groups', 'class', classId],
+    select: (data: StudentGroup[]) => data.filter((group: StudentGroup) => group.classId === classId),
+  });
+
+  // Create group mutation
+  const createInlineGroupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest('POST', '/api/student-groups', data);
+    },
+    onSuccess: () => {
+      onGroupChange();
+      setNewGroupName("");
+      setNewGroupTeacherId("no-teacher");
+      setNewGroupDescription("");
+      setNewGroupMaxStudents("10");
+      toast({ title: "Success", description: "Student group created successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create student group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update group mutation
+  const updateInlineGroupMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      return await apiRequest('PUT', `/api/student-groups/${id}`, data);
+    },
+    onSuccess: () => {
+      onGroupChange();
+      setEditingInlineGroup(null);
+      toast({ title: "Success", description: "Student group updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update student group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete group mutation
+  const deleteInlineGroupMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest('DELETE', `/api/student-groups/${id}`);
+    },
+    onSuccess: () => {
+      onGroupChange();
+      toast({ title: "Success", description: "Student group deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete student group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateInlineGroup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+
+    const data = {
+      name: newGroupName,
+      classId: classId,
+      teacherId: newGroupTeacherId && newGroupTeacherId !== "no-teacher" ? parseInt(newGroupTeacherId) : null,
+      description: newGroupDescription,
+      maxStudents: parseInt(newGroupMaxStudents),
+      schoolId: 1, // TODO: Get from user context
+    };
+    createInlineGroupMutation.mutate(data);
+  };
+
+  const handleUpdateInlineGroup = (group: StudentGroup, formData: FormData) => {
+    const teacherId = formData.get('teacherId') as string;
+    const data = {
+      name: formData.get('name') as string,
+      teacherId: teacherId && teacherId !== "no-teacher" ? parseInt(teacherId) : null,
+      description: formData.get('description') as string,
+      maxStudents: parseInt(formData.get('maxStudents') as string),
+      isActive: formData.get('isActive') === 'on',
+    };
+    updateInlineGroupMutation.mutate({ id: group.id, data });
+  };
+
+  const getTeacherName = (teacherId?: number) => {
+    const teacher = teachers.find((t: Teacher) => t.id === teacherId);
+    return teacher ? teacher.fullName : 'Unassigned';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h4 className="text-lg font-medium mb-2">Groups in {className}</h4>
+        <p className="text-sm text-gray-600 mb-4">
+          Create and manage student groups within this class
+        </p>
+      </div>
+
+      {/* Add New Group Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Add New Group</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreateInlineGroup} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="inlineGroupName">Group Name</Label>
+                <Input
+                  id="inlineGroupName"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="e.g., Reading Group A"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="inlineGroupTeacher">Assigned Teacher</Label>
+                <Select value={newGroupTeacherId} onValueChange={setNewGroupTeacherId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select teacher (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no-teacher">No teacher assigned</SelectItem>
+                    {teachers.map((teacher: Teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                        {teacher.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="inlineGroupMaxStudents">Max Students</Label>
+                <Input
+                  id="inlineGroupMaxStudents"
+                  type="number"
+                  value={newGroupMaxStudents}
+                  onChange={(e) => setNewGroupMaxStudents(e.target.value)}
+                  placeholder="10"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="inlineGroupDescription">Description</Label>
+                <Input
+                  id="inlineGroupDescription"
+                  value={newGroupDescription}
+                  onChange={(e) => setNewGroupDescription(e.target.value)}
+                  placeholder="Brief description..."
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button 
+                type="submit"
+                disabled={createInlineGroupMutation.isPending || !newGroupName.trim()}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                {createInlineGroupMutation.isPending ? 'Creating...' : 'Add Group'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Existing Groups */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Existing Groups ({(classGroups as StudentGroup[])?.length || 0})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {groupsLoading ? (
+            <div className="flex justify-center p-4">Loading groups...</div>
+          ) : (classGroups as StudentGroup[])?.length === 0 ? (
+            <div className="text-center p-6 text-gray-500">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No groups created yet</p>
+              <p className="text-sm">Use the form above to create the first group</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(classGroups as StudentGroup[])?.map((group: StudentGroup) => (
+                <div key={group.id} className="border rounded-lg p-4">
+                  {editingInlineGroup?.id === group.id ? (
+                    // Edit form
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      handleUpdateInlineGroup(group, formData);
+                    }} className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label>Group Name</Label>
+                          <Input name="name" defaultValue={group.name} required />
+                        </div>
+                        <div>
+                          <Label>Teacher</Label>
+                          <Select name="teacherId" defaultValue={group.teacherId?.toString() || "no-teacher"}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="no-teacher">No teacher assigned</SelectItem>
+                              {teachers.map((teacher: Teacher) => (
+                                <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                  {teacher.fullName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Max Students</Label>
+                          <Input name="maxStudents" type="number" defaultValue={group.maxStudents} required />
+                        </div>
+                        <div>
+                          <Label>Description</Label>
+                          <Input name="description" defaultValue={group.description || ""} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Switch name="isActive" defaultChecked={group.isActive} />
+                          <Label>Active</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingInlineGroup(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            type="submit"
+                            size="sm"
+                            disabled={updateInlineGroupMutation.isPending}
+                          >
+                            {updateInlineGroupMutation.isPending ? 'Saving...' : 'Save'}
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  ) : (
+                    // Display mode
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <h5 className="font-medium">{group.name}</h5>
+                          <Badge variant={group.isActive ? "default" : "secondary"}>
+                            {group.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          <span>Teacher: {getTeacherName(group.teacherId)}</span>
+                          <span className="mx-2">•</span>
+                          <span>Max: {group.maxStudents} students</span>
+                          {group.description && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <span>{group.description}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingInlineGroup(group)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteInlineGroupMutation.mutate(group.id)}
+                          disabled={deleteInlineGroupMutation.isPending}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 interface Class {
   id: number;
   name: string;
@@ -779,66 +1100,87 @@ export default function ClassManagement() {
       {/* Edit Class Dialog */}
       {editingClass && (
         <Dialog open={!!editingClass} onOpenChange={() => setEditingClass(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Class</DialogTitle>
+              <DialogTitle>Edit Class: {editingClass.name}</DialogTitle>
               <DialogDescription>
-                Update class information
+                Update class information and manage student groups
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleUpdateClass} className="space-y-4">
-              <div>
-                <Label htmlFor="editName">Class Name</Label>
-                <Input
-                  id="editName"
-                  name="name"
-                  defaultValue={editingClass.name}
-                  required
+            
+            <Tabs defaultValue="class-details" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="class-details">Class Details</TabsTrigger>
+                <TabsTrigger value="manage-groups">Manage Groups</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="class-details" className="space-y-4">
+                <form onSubmit={handleUpdateClass} className="space-y-4">
+                  <div>
+                    <Label htmlFor="editName">Class Name</Label>
+                    <Input
+                      id="editName"
+                      name="name"
+                      defaultValue={editingClass.name}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editAcademicYear">Academic Year</Label>
+                    <Input
+                      id="editAcademicYear"
+                      name="academicYear"
+                      defaultValue={editingClass.academicYear}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editCapacity">Class Capacity</Label>
+                    <Input
+                      id="editCapacity"
+                      name="capacity"
+                      type="number"
+                      defaultValue={editingClass.capacity}
+                      required
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="editIsActive"
+                      name="isActive"
+                      defaultChecked={editingClass.isActive}
+                    />
+                    <Label htmlFor="editIsActive">Active</Label>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditingClass(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit"
+                      disabled={updateClassMutation.isPending}
+                    >
+                      {updateClassMutation.isPending ? 'Updating...' : 'Update Class'}
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="manage-groups" className="space-y-4">
+                <ClassGroupManager 
+                  classId={editingClass.id}
+                  className={editingClass.name}
+                  teachers={teachers}
+                  onGroupChange={() => {
+                    queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
+                  }}
                 />
-              </div>
-              <div>
-                <Label htmlFor="editAcademicYear">Academic Year</Label>
-                <Input
-                  id="editAcademicYear"
-                  name="academicYear"
-                  defaultValue={editingClass.academicYear}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="editCapacity">Class Capacity</Label>
-                <Input
-                  id="editCapacity"
-                  name="capacity"
-                  type="number"
-                  defaultValue={editingClass.capacity}
-                  required
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="editIsActive"
-                  name="isActive"
-                  defaultChecked={editingClass.isActive}
-                />
-                <Label htmlFor="editIsActive">Active</Label>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingClass(null)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={updateClassMutation.isPending}
-                >
-                  {updateClassMutation.isPending ? 'Updating...' : 'Update Class'}
-                </Button>
-              </div>
-            </form>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       )}
