@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { Sidebar } from "@/components/Sidebar";
 import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import LoginFailed from "@/pages/LoginFailed";
 import Dashboard from "@/pages/Dashboard";
 import GradeInput from "@/pages/GradeInput";
 import StudentProgress from "@/pages/StudentProgress";
@@ -19,8 +21,15 @@ function Router() {
 
   return (
     <Switch>
+      {/* Public routes - always accessible */}
+      <Route path="/login" component={Login} />
+      <Route path="/login-failed" component={LoginFailed} />
+      
       {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          <Route component={Landing} /> {/* Redirect any other route to landing when not authenticated */}
+        </>
       ) : (
         <>
           <Route path="/" component={Dashboard} />

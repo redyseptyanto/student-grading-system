@@ -80,11 +80,11 @@ export default function Landing() {
 
         {/* CTA */}
         <div className="text-center">
-          <Button size="lg" onClick={handleLogin} className="px-8 py-3">
+          <Button size="lg" onClick={() => window.location.href = '/login'} className="px-8 py-3">
             Sign In to Get Started
           </Button>
           <p className="text-sm text-gray-500 mt-4">
-            Secure login powered by Replit Auth
+            Secure login with multiple authentication options
           </p>
         </div>
       </div>
