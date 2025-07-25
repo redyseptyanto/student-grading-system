@@ -2,7 +2,7 @@
 
 ## Overview
 
-GradeWise is a comprehensive kindergarten grading and reporting system built with a modern full-stack architecture. The application provides role-based access for administrators, teachers, and parents to manage student assessments, track progress, and generate reports with interactive charts.
+GradeWise is a comprehensive kindergarten grading and reporting system built with a modern full-stack architecture. The application provides role-based access for administrators, teachers, and parents to manage student assessments, track progress, and generate reports with interactive charts. The system now supports multi-role users and includes comprehensive search and filtering capabilities for efficient data management.
 
 ## User Preferences
 
@@ -48,6 +48,34 @@ Preferred communication style: Simple, everyday language.
 - **Class Assignment**: Assign teachers to multiple classes with checkbox interface
 - **Performance Tracking**: View student count per teacher and class assignments
 - **Role-Based Access**: Secure admin-only access to teacher management
+
+## SuperAdmin Dashboard Features
+
+### Multi-Role User Management
+- **Flexible Role Assignment**: Users can have multiple roles simultaneously (admin, teacher, parent, superadmin)
+- **Dynamic Role Management**: Add/remove roles from users with real-time updates
+- **Role-Based Navigation**: Sidebar displays combined menu items from all assigned roles
+- **Multi-Role Authorization**: Authorization checks support multiple role validation
+
+### Advanced Search and Filtering
+- **User Search & Filter**: 
+  - Real-time search by name or email
+  - Filter by specific roles (superadmin, admin, teacher, parent)
+  - Filter by school assignment
+  - Filter by active/inactive status
+  - Combine multiple filters for precise results
+- **School Search & Filter**:
+  - Search by school name, address, or principal name
+  - Filter by active/inactive status
+  - Real-time search with instant results
+- **Visual Feedback**: Shows filtered count vs total count for transparency
+- **Clear Filters**: One-click clear all filters functionality
+
+### System-Wide Management
+- **School Management**: Full CRUD operations for schools across the system
+- **User Role Administration**: Comprehensive user and role management interface
+- **System Statistics**: Overview of total schools, users, and students
+- **Activity Monitoring**: Recent activity tracking and system health status
 
 ### Report Card Template System
 - **Template Creation**: Design custom report card layouts with drag-and-drop components

@@ -255,7 +255,7 @@ export default function SuperAdminDashboard() {
   const handleUserRoleUpdate = (userId: string, newRole: string, schoolId: number | null) => {
     updateUserMutation.mutate({
       id: userId,
-      data: { role: newRole as any, schoolId },
+      data: { roles: [newRole], schoolId },
     });
   };
 
@@ -267,7 +267,7 @@ export default function SuperAdminDashboard() {
   };
 
   // Filter and search functions
-  const filteredUsers = allUsers.filter((user: User) => {
+  const filteredUsers = (allUsers as User[]).filter((user: User) => {
     const searchMatch = userSearchTerm === "" || 
       user.firstName?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
       user.lastName?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
@@ -287,7 +287,7 @@ export default function SuperAdminDashboard() {
     return searchMatch && roleMatch && schoolMatch && statusMatch;
   });
 
-  const filteredSchools = schools.filter((school: School) => {
+  const filteredSchools = (schools as School[]).filter((school: School) => {
     const searchMatch = schoolSearchTerm === "" ||
       school.name.toLowerCase().includes(schoolSearchTerm.toLowerCase()) ||
       school.address?.toLowerCase().includes(schoolSearchTerm.toLowerCase()) ||
@@ -529,7 +529,7 @@ export default function SuperAdminDashboard() {
             </div>
             {(schoolSearchTerm || schoolStatusFilter !== "all") && (
               <div className="mt-2 text-sm text-gray-600">
-                Showing {filteredSchools.length} of {schools.length} schools
+                Showing {filteredSchools.length} of {(schools as School[]).length} schools
               </div>
             )}
           </Card>
@@ -632,7 +632,7 @@ export default function SuperAdminDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Schools</SelectItem>
-                    {schools.map((school: School) => (
+                    {(schools as School[]).map((school: School) => (
                       <SelectItem key={school.id} value={school.id.toString()}>
                         {school.name}
                       </SelectItem>
@@ -661,7 +661,7 @@ export default function SuperAdminDashboard() {
             </div>
             {(userSearchTerm || userRoleFilter !== "all" || userSchoolFilter !== "all" || userStatusFilter !== "all") && (
               <div className="mt-2 text-sm text-gray-600">
-                Showing {filteredUsers.length} of {allUsers.length} users
+                Showing {filteredUsers.length} of {(allUsers as User[]).length} users
               </div>
             )}
           </Card>
@@ -692,7 +692,7 @@ export default function SuperAdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {(user.roles || [user.role]).map((role: string) => (
+                            {(user.roles || []).map((role: string) => (
                               <Badge 
                                 key={role}
                                 variant={role === "superadmin" ? "default" : role === "admin" ? "secondary" : "outline"}
@@ -716,7 +716,7 @@ export default function SuperAdminDashboard() {
                               </SelectTrigger>
                               <SelectContent>
                                 {["superadmin", "admin", "teacher", "parent"].filter(role => 
-                                  !(user.roles || [user.role]).includes(role)
+                                  !user.roles?.includes(role)
                                 ).map(role => (
                                   <SelectItem key={role} value={role}>
                                     {role}
@@ -727,7 +727,7 @@ export default function SuperAdminDashboard() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {(user.roles || [user.role]).includes("superadmin") ? (
+                          {user.roles?.includes("superadmin") ? (
                             <Badge variant="outline">All Schools</Badge>
                           ) : (
                             <Select
