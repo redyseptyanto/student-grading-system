@@ -24,6 +24,7 @@ const studentFormSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   nickname: z.string().optional(),
   gender: z.string().optional(),
+  schoolId: z.string().min(1, "Please select a school"),
   schoolCode: z.string().optional(),
   academicYear: z.string().min(1, "Academic year is required"),
   classId: z.string().min(1, "Please select a class"),
@@ -55,6 +56,10 @@ export default function StudentManagement() {
     queryKey: ['/api/classes'],
   });
 
+  const { data: schools, isLoading: schoolsLoading } = useQuery({
+    queryKey: ['/api/schools'],
+  });
+
   // Form setup
   const form = useForm<StudentFormData>({
     resolver: zodResolver(studentFormSchema),
@@ -65,6 +70,7 @@ export default function StudentManagement() {
       fullName: "",
       nickname: "",
       gender: "",
+      schoolId: "",
       schoolCode: "",
       academicYear: "2024-2025",
       classId: "",
@@ -82,6 +88,7 @@ export default function StudentManagement() {
       return apiRequest('POST', '/api/admin/students', {
         ...data,
         classId: parseInt(data.classId),
+        schoolId: parseInt(data.schoolId),
       });
     },
     onSuccess: () => {
@@ -108,6 +115,7 @@ export default function StudentManagement() {
       return apiRequest('PATCH', `/api/admin/students/${data.id}`, {
         ...data,
         classId: parseInt(data.classId),
+        schoolId: parseInt(data.schoolId),
       });
     },
     onSuccess: () => {
@@ -189,6 +197,7 @@ export default function StudentManagement() {
       fullName: student.fullName || "",
       nickname: student.nickname || "",
       gender: student.gender || "",
+      schoolId: student.schoolId?.toString() || "",
       schoolCode: student.schoolCode || "",
       academicYear: student.academicYear || "2024-2025",
       classId: student.classId?.toString() || "",
@@ -323,9 +332,9 @@ export default function StudentManagement() {
                     <TableHead>Full Name</TableHead>
                     <TableHead>Nickname</TableHead>
                     <TableHead>Gender</TableHead>
+                    <TableHead>School</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Group</TableHead>
-                    <TableHead>School Code</TableHead>
                     <TableHead>Academic Year</TableHead>
                     <TableHead>No Absence</TableHead>
                     <TableHead>Status</TableHead>
@@ -341,12 +350,14 @@ export default function StudentManagement() {
                       <TableCell>{student.nickname || "-"}</TableCell>
                       <TableCell>{student.gender || "-"}</TableCell>
                       <TableCell>
+                        {schools?.find((s: any) => s.id === student.schoolId)?.schoolCode || "-"}
+                      </TableCell>
+                      <TableCell>
                         {classes?.find((c: any) => c.id === student.classId)?.name || 'Unassigned'}
                       </TableCell>
                       <TableCell>
                         {student.groupId ? `Group ${student.groupId}` : "-"}
                       </TableCell>
-                      <TableCell>{student.schoolCode || "-"}</TableCell>
                       <TableCell>{student.academicYear || '2024-2025'}</TableCell>
                       <TableCell>{student.noAbsence || 0}</TableCell>
                       <TableCell>
@@ -489,22 +500,38 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
+
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="schoolCode"
+                  name="schoolId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>School Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="School identifier code" {...field} />
-                      </FormControl>
+                      <FormLabel>School*</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a school" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {schoolsLoading ? (
+                            <SelectItem value="loading" disabled>Loading schools...</SelectItem>
+                          ) : (
+                            schools?.map((school: any) => (
+                              <SelectItem key={school.id} value={school.id.toString()}>
+                                {school.schoolCode} - {school.name} ({school.program})
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="classId"
@@ -533,6 +560,9 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="academicYear"
@@ -541,6 +571,19 @@ export default function StudentManagement() {
                       <FormLabel>Academic Year*</FormLabel>
                       <FormControl>
                         <Input placeholder="2024-2025" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="schoolCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>School Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Auto-filled from school selection" {...field} disabled />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

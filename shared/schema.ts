@@ -24,10 +24,12 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// Schools table - multi-school support
+// Schools table - multi-school support with real master data
 export const schools = pgTable("schools", {
   id: serial("id").primaryKey(),
-  name: varchar("name").notNull(),
+  schoolCode: varchar("school_code").notNull().unique(), // Real school codes like K01, K02, etc.
+  name: varchar("name").notNull(), // School names from master data
+  program: varchar("program").notNull(), // Nasional, Bilingual, Entrepreneurship
   address: text("address"),
   phone: varchar("phone"),
   email: varchar("email"),

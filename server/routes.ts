@@ -217,6 +217,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Schools routes
+  app.get('/api/schools', isAuthenticated, async (req: any, res) => {
+    try {
+      const schools = await storage.getSchools();
+      res.json(schools);
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+      res.status(500).json({ message: "Failed to fetch schools" });
+    }
+  });
+
   // Student Group routes
   app.get('/api/student-groups', isAuthenticated, async (req: any, res) => {
     try {

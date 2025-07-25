@@ -83,6 +83,9 @@ export interface IStorage {
   updateReportTemplate(id: number, data: Partial<ReportTemplate>): Promise<ReportTemplate>;
   deleteReportTemplate(id: number): Promise<void>;
   
+  // School operations
+  getSchools(): Promise<School[]>;
+  
   // SuperAdmin operations
   getAllSchools(): Promise<School[]>;
   createSchool(data: InsertSchool): Promise<School>;
@@ -366,6 +369,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReportTemplate(id: number): Promise<void> {
     await db.delete(reportTemplates).where(eq(reportTemplates.id, id));
+  }
+
+  // School operations
+  async getSchools(): Promise<School[]> {
+    return await db.select().from(schools);
   }
 
   // SuperAdmin operations
