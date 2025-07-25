@@ -72,14 +72,14 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const { toast } = useToast();
 
   // Get groups for this specific class
-  const { data: classGroups, isLoading: groupsLoading } = useQuery({
-    queryKey: ['/api/student-groups', 'class', classId],
-    select: (data: StudentGroup[]) => data.filter((group: StudentGroup) => group.classId === classId),
+  const { data: classGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
+    queryKey: ['/api/student-groups', 'classId', classId],
+    queryFn: () => apiRequest('GET', `/api/student-groups?classId=${classId}`),
   });
 
-  // Get students in this class
-  const { data: classStudents, isLoading: studentsLoading } = useQuery({
-    queryKey: ['/api/students', 'class', classId],
+  // Get students in this class  
+  const { data: classStudents, isLoading: studentsLoading } = useQuery<Student[]>({
+    queryKey: ['/api/students'],
     select: (data: Student[]) => data.filter((student: Student) => student.classId === classId),
   });
 
@@ -578,6 +578,14 @@ interface Teacher {
   id: number;
   fullName: string;
   email: string;
+}
+
+interface Student {
+  id: number;
+  fullName: string;
+  classId: number;
+  groupId?: number | null;
+  isActive: boolean;
 }
 
 interface School {
