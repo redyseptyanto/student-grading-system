@@ -537,7 +537,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Teacher management (admin)
   app.get('/api/admin/teachers', isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const teachers = await storage.getTeachersWithDetails();
+      const userId = req.user?.claims?.sub;
+      const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+      
+      if (!effectiveSchool) {
+        return res.status(404).json({ message: "No school assignment found for user" });
+      }
+      
+      // Get teachers assigned to the admin's effective school
+      const teachers = await storage.getTeachersBySchool(effectiveSchool.id);
       res.json(teachers);
     } catch (error) {
       console.error("Error fetching teachers for admin:", error);

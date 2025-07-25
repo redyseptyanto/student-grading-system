@@ -82,6 +82,7 @@ export interface IStorage {
   deleteStudent(id: number): Promise<void>;
   getTeachers(): Promise<Teacher[]>;
   getTeachersWithDetails(): Promise<Teacher[]>;
+  getTeachersBySchool(schoolId: number): Promise<Teacher[]>;
   createTeacherAdmin(data: any): Promise<Teacher>;
   updateTeacherAdmin(id: number, data: Partial<Teacher>): Promise<Teacher>;
   deleteTeacherAdmin(id: number): Promise<void>;
@@ -504,6 +505,73 @@ export class DatabaseStorage implements IStorage {
     }
     
     return Array.from(teacherMap.values());
+  }
+
+  async getTeachersBySchool(schoolId: number): Promise<any[]> {
+    // Get teachers with their current assignments for the specified school
+    const teachersWithAssignments = await db
+      .select({
+        id: teachers.id,
+        userId: teachers.userId,
+        fullName: teachers.fullName,
+        email: teachers.email,
+        phone: teachers.phone,
+        qualifications: teachers.qualifications,
+        isActive: teachers.isActive,
+        createdAt: teachers.createdAt,
+        updatedAt: teachers.updatedAt,
+        // Assignment data
+        assignmentId: teacherAssignments.id,
+        schoolId: teacherAssignments.schoolId,
+        academicYear: teacherAssignments.academicYear,
+        subjects: teacherAssignments.subjects,
+        assignedClasses: teacherAssignments.assignedClasses,
+        assignmentActive: teacherAssignments.isActive,
+      })
+      .from(teachers)
+      .leftJoin(teacherAssignments, and(
+        eq(teachers.id, teacherAssignments.teacherId),
+        eq(teacherAssignments.schoolId, schoolId),
+        eq(teacherAssignments.academicYear, '2025/2026') // Current academic year
+      ))
+      .where(teacherAssignments.schoolId);
+
+    // Get groups assigned to each teacher assignment
+    const teacherGroups = await db
+      .select({
+        teacherAssignmentId: studentGroups.teacherAssignmentId,
+        groupId: studentGroups.id,
+        groupName: studentGroups.name,
+      })
+      .from(studentGroups)
+      .where(sql`${studentGroups.teacherAssignmentId} IS NOT NULL`);
+    
+    // Format the result
+    return teachersWithAssignments.map(row => {
+      // Get assigned groups for this assignment
+      const assignedGroups = row.assignmentId 
+        ? teacherGroups
+            .filter(g => g.teacherAssignmentId === row.assignmentId)
+            .map(g => g.groupId)
+        : [];
+      
+      return {
+        id: row.id,
+        userId: row.userId,
+        fullName: row.fullName,
+        email: row.email,
+        phone: row.phone,
+        qualifications: row.qualifications,
+        isActive: row.isActive,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        subjects: row.subjects || [],
+        assignedClasses: row.assignedClasses || [],
+        assignedGroups: assignedGroups,
+        schoolId: row.schoolId,
+        academicYear: row.academicYear || '2025/2026',
+      };
+    });
   }
 
   async createTeacherAdmin(data: InsertTeacher): Promise<Teacher> {
