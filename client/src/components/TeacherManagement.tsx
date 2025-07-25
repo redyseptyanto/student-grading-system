@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Edit, Trash2, GraduationCap, Users, BookOpen } from "lucide-react";
+import { Plus, Search, Edit, Trash2, GraduationCap, Users, BookOpen, School, Calendar, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const teacherFormSchema = z.object({
@@ -40,6 +40,8 @@ const subjectOptions = [
 
 export default function TeacherManagement() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSchool, setSelectedSchool] = useState("");
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -52,6 +54,10 @@ export default function TeacherManagement() {
 
   const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ['/api/classes'],
+  });
+
+  const { data: schools, isLoading: schoolsLoading } = useQuery({
+    queryKey: ['/api/schools'],
   });
 
   // Form setup
@@ -160,12 +166,33 @@ export default function TeacherManagement() {
     setIsDialogOpen(true);
   };
 
+  // Get unique academic years from teachers
+  const academicYears = Array.from(new Set(teachers?.map((teacher: any) => teacher.academicYear).filter(Boolean))) || [];
+  if (!academicYears.includes("2025/2026")) {
+    academicYears.unshift("2025/2026");
+  }
+
   // Filter teachers
   const filteredTeachers = teachers?.filter((teacher: any) => {
     const matchesSearch = teacher.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          teacher.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    
+    const matchesSchool = !selectedSchool || teacher.schoolName === selectedSchool;
+    
+    const matchesAcademicYear = !selectedAcademicYear || teacher.academicYear === selectedAcademicYear;
+    
+    return matchesSearch && matchesSchool && matchesAcademicYear;
   }) || [];
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedSchool("");
+    setSelectedAcademicYear("");
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || selectedSchool || selectedAcademicYear;
 
   return (
     <div className="space-y-6">
@@ -181,24 +208,84 @@ export default function TeacherManagement() {
         </Button>
       </div>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search teachers by name or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search teachers by name or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-600">
+                  {filteredTeachers.length} of {teachers?.length || 0} teachers
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
-                {filteredTeachers.length} teachers
-              </span>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Filters:</span>
+              </div>
+              
+              {/* School Filter */}
+              <div className="flex items-center gap-2">
+                <School className="h-4 w-4 text-gray-500" />
+                <Select value={selectedSchool} onValueChange={setSelectedSchool}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="All Schools" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Schools</SelectItem>
+                    {schools?.map((school: any) => (
+                      <SelectItem key={school.id} value={school.name}>
+                        {school.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Academic Year Filter */}
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <Select value={selectedAcademicYear} onValueChange={setSelectedAcademicYear}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Years</SelectItem>
+                    {academicYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Clear Filters
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -227,6 +314,8 @@ export default function TeacherManagement() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>School</TableHead>
+                    <TableHead>Academic Year</TableHead>
                     <TableHead>Subjects</TableHead>
                     <TableHead>Assigned Classes</TableHead>
                     <TableHead>Students</TableHead>
@@ -241,6 +330,22 @@ export default function TeacherManagement() {
                       </TableCell>
                       <TableCell>
                         {teacher.email || "Not provided"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <School className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm">
+                            {teacher.schoolName || "Not assigned"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm">
+                            {teacher.academicYear || "2025/2026"}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
