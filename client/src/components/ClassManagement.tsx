@@ -100,11 +100,11 @@ export default function ClassManagement() {
   
   // Filter states
   const [classSearchTerm, setClassSearchTerm] = useState("");
-  const [classAcademicYearFilter, setClassAcademicYearFilter] = useState("");
-  const [classSchoolFilter, setClassSchoolFilter] = useState("");
+  const [classAcademicYearFilter, setClassAcademicYearFilter] = useState("all-years");
+  const [classSchoolFilter, setClassSchoolFilter] = useState("all-schools");
   const [groupSearchTerm, setGroupSearchTerm] = useState("");
-  const [groupSchoolFilter, setGroupSchoolFilter] = useState("");
-  const [groupClassFilter, setGroupClassFilter] = useState("");
+  const [groupSchoolFilter, setGroupSchoolFilter] = useState("all-schools");
+  const [groupClassFilter, setGroupClassFilter] = useState("all-classes");
 
   // Fetch data
   const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
@@ -328,15 +328,15 @@ export default function ClassManagement() {
   // Filter functions
   const filteredClasses = classes.filter((classData: Class) => {
     const matchesSearch = classData.name.toLowerCase().includes(classSearchTerm.toLowerCase());
-    const matchesAcademicYear = !classAcademicYearFilter || classData.academicYear === classAcademicYearFilter;
-    const matchesSchool = !classSchoolFilter || classData.schoolId.toString() === classSchoolFilter;
+    const matchesAcademicYear = classAcademicYearFilter === "all-years" || classData.academicYear === classAcademicYearFilter;
+    const matchesSchool = classSchoolFilter === "all-schools" || classData.schoolId.toString() === classSchoolFilter;
     return matchesSearch && matchesAcademicYear && matchesSchool;
   });
 
   const filteredGroups = studentGroups.filter((group: StudentGroup) => {
     const matchesSearch = group.name.toLowerCase().includes(groupSearchTerm.toLowerCase());
-    const matchesSchool = !groupSchoolFilter || group.schoolId.toString() === groupSchoolFilter;
-    const matchesClass = !groupClassFilter || group.classId.toString() === groupClassFilter;
+    const matchesSchool = groupSchoolFilter === "all-schools" || group.schoolId.toString() === groupSchoolFilter;
+    const matchesClass = groupClassFilter === "all-classes" || group.classId.toString() === groupClassFilter;
     return matchesSearch && matchesSchool && matchesClass;
   });
 
@@ -346,14 +346,14 @@ export default function ClassManagement() {
   // Clear filters functions
   const clearClassFilters = () => {
     setClassSearchTerm("");
-    setClassAcademicYearFilter("");
-    setClassSchoolFilter("");
+    setClassAcademicYearFilter("all-years");
+    setClassSchoolFilter("all-schools");
   };
 
   const clearGroupFilters = () => {
     setGroupSearchTerm("");
-    setGroupSchoolFilter("");
-    setGroupClassFilter("");
+    setGroupSchoolFilter("all-schools");
+    setGroupClassFilter("all-classes");
   };
 
   if (classesLoading || teachersLoading || schoolsLoading) {
@@ -469,7 +469,7 @@ export default function ClassManagement() {
                       <SelectValue placeholder="All Schools" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Schools</SelectItem>
+                      <SelectItem value="all-schools">All Schools</SelectItem>
                       {schools.map((school: School) => (
                         <SelectItem key={school.id} value={school.id.toString()}>
                           {school.name}
@@ -485,7 +485,7 @@ export default function ClassManagement() {
                       <SelectValue placeholder="All Years" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Years</SelectItem>
+                      <SelectItem value="all-years">All Years</SelectItem>
                       {academicYears.map((year: string) => (
                         <SelectItem key={year} value={year}>
                           {year}
@@ -700,7 +700,7 @@ export default function ClassManagement() {
                       <SelectValue placeholder="All Schools" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Schools</SelectItem>
+                      <SelectItem value="all-schools">All Schools</SelectItem>
                       {schools.map((school: School) => (
                         <SelectItem key={school.id} value={school.id.toString()}>
                           {school.name}
@@ -716,7 +716,7 @@ export default function ClassManagement() {
                       <SelectValue placeholder="All Classes" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Classes</SelectItem>
+                      <SelectItem value="all-classes">All Classes</SelectItem>
                       {classes.map((classData: Class) => (
                         <SelectItem key={classData.id} value={classData.id.toString()}>
                           {classData.name}
