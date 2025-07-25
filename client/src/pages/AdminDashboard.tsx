@@ -33,7 +33,7 @@ export default function AdminDashboard() {
     queryKey: ['/api/admin/stats'],
   });
 
-  if (!user || user.role !== 'admin') {
+  if (!user || !(user as any).roles?.includes('admin')) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Card className="w-96">

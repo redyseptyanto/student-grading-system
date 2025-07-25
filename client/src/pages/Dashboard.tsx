@@ -44,7 +44,7 @@ export default function Dashboard() {
 
   const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ["/api/classes"],
-    enabled: !!user && user.role === "admin",
+    enabled: !!user && (user as any).roles?.includes("admin"),
     retry: false,
   });
 
@@ -181,18 +181,18 @@ export default function Dashboard() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          {user.role === "admin" && "Admin Dashboard"}
-          {user.role === "teacher" && "Teacher Dashboard"}
-          {user.role === "parent" && "Parent Dashboard"}
+          {(user as any).roles?.includes("admin") && "Admin Dashboard"}
+          {(user as any).roles?.includes("teacher") && !((user as any).roles?.includes("admin")) && "Teacher Dashboard"}
+          {(user as any).roles?.includes("parent") && !((user as any).roles?.includes("admin")) && !((user as any).roles?.includes("teacher")) && "Parent Dashboard"}
         </h1>
         <p className="text-gray-600">
           Welcome back, {user.firstName} {user.lastName}
         </p>
       </div>
 
-      {user.role === "teacher" && renderTeacherDashboard()}
-      {user.role === "admin" && renderAdminDashboard()}
-      {user.role === "parent" && renderParentDashboard()}
+      {(user as any).roles?.includes("admin") && renderAdminDashboard()}
+      {(user as any).roles?.includes("teacher") && !((user as any).roles?.includes("admin")) && renderTeacherDashboard()}
+      {(user as any).roles?.includes("parent") && !((user as any).roles?.includes("admin")) && !((user as any).roles?.includes("teacher")) && renderParentDashboard()}
     </div>
   );
 }

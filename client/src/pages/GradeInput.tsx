@@ -47,7 +47,7 @@ export default function GradeInput() {
 
   const { data: students, isLoading: studentsLoading } = useQuery({
     queryKey: ["/api/students"],
-    enabled: !!user && user.role === "teacher",
+    enabled: !!user && (user as any).roles?.includes("teacher"),
     retry: false,
   });
 
@@ -143,7 +143,7 @@ export default function GradeInput() {
     return <GradeInputSkeleton />;
   }
 
-  if (!user || user.role !== "teacher") {
+  if (!user || !(user as any).roles?.includes("teacher")) {
     return null;
   }
 

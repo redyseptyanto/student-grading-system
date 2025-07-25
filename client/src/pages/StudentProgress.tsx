@@ -99,7 +99,7 @@ export default function StudentProgress() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          {user.role === "parent" ? "My Child's Progress" : "Student Progress"}
+          {(user as any).roles?.includes("parent") ? "My Child's Progress" : "Student Progress"}
         </h1>
         <p className="text-gray-600">
           Track learning progress across all assessment areas
@@ -107,7 +107,7 @@ export default function StudentProgress() {
       </div>
 
       {/* Student Selector */}
-      {user.role !== "parent" && (
+      {!(user as any).roles?.includes("parent") && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Select Student</CardTitle>
@@ -135,10 +135,10 @@ export default function StudentProgress() {
       )}
 
       {/* Progress Overview */}
-      {(selectedStudentData || (user.role === "parent" && students?.[0])) && (
+      {(selectedStudentData || ((user as any).roles?.includes("parent") && students?.[0])) && (
         <div className="space-y-6">
           {(() => {
-            const student = selectedStudentData || (user.role === "parent" ? students?.[0] : null);
+            const student = selectedStudentData || ((user as any).roles?.includes("parent") ? students?.[0] : null);
             if (!student) return null;
 
             const gradesEntries = Object.entries(student.grades || {});
@@ -255,7 +255,7 @@ export default function StudentProgress() {
                 </Card>
 
                 {/* Missing Assessments */}
-                {user.role === "teacher" && (
+                {(user as any).roles?.includes("teacher") && (
                   <Card>
                     <CardHeader>
                       <CardTitle>Missing Assessments</CardTitle>
@@ -299,7 +299,7 @@ export default function StudentProgress() {
       )}
 
       {/* No Student Selected */}
-      {!selectedStudentData && user.role !== "parent" && (
+      {!selectedStudentData && !(user as any).roles?.includes("parent") && (
         <Card>
           <CardContent className="text-center py-12">
             <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
