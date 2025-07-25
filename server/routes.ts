@@ -9,9 +9,12 @@ import {
   insertClassSchema,
   insertTeacherSchema,
   insertParentSchema,
+  users,
   ASSESSMENT_ASPECTS 
 } from "@shared/schema";
 import { z } from "zod";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -424,6 +427,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting report template:", error);
       res.status(500).json({ message: "Failed to delete report template" });
+    }
+  });
+
+  // SuperAdmin routes
+  const isSuperAdmin = async (req: any, res: any, next: any) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "superadmin") {
+        return res.status(403).json({ message: "Access denied. SuperAdmin role required." });
+      }
+
+      next();
+    } catch (error) {
+      console.error("Error checking superadmin role:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
+
+  // SuperAdmin Schools Management
+  app.get("/api/superadmin/schools", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const schools = await storage.getAllSchools();
+      res.json(schools);
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+      res.status(500).json({ message: "Failed to fetch schools" });
+    }
+  });
+
+  app.post("/api/superadmin/schools", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const school = await storage.createSchool(req.body);
+      res.status(201).json(school);
+    } catch (error) {
+      console.error("Error creating school:", error);
+      res.status(500).json({ message: "Failed to create school" });
+    }
+  });
+
+  app.put("/api/superadmin/schools/:id", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const school = await storage.updateSchool(id, req.body);
+      res.json(school);
+    } catch (error) {
+      console.error("Error updating school:", error);
+      res.status(500).json({ message: "Failed to update school" });
+    }
+  });
+
+  app.delete("/api/superadmin/schools/:id", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteSchool(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting school:", error);
+      res.status(500).json({ message: "Failed to delete school" });
+    }
+  });
+
+  // SuperAdmin Users Management
+  app.get("/api/superadmin/users", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsersWithSchools();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.put("/api/superadmin/users/:id", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { role, schoolId, isActive } = req.body;
+      
+      if (role && schoolId !== undefined) {
+        await storage.updateUserRole(id, role, schoolId);
+      }
+      
+      if (isActive !== undefined) {
+        const [updatedUser] = await db
+          .update(users)
+          .set({ isActive, updatedAt: new Date() })
+          .where(eq(users.id, id))
+          .returning();
+      }
+      
+      const user = await storage.getUser(id);
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // SuperAdmin System Stats
+  app.get("/api/superadmin/stats", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getSystemStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching system stats:", error);
+      res.status(500).json({ message: "Failed to fetch system statistics" });
     }
   });
 

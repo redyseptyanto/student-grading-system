@@ -24,30 +24,49 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table (required for Replit Auth)
+// Schools table - multi-school support
+export const schools = pgTable("schools", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  address: text("address"),
+  phone: varchar("phone"),
+  email: varchar("email"),
+  principalName: varchar("principal_name"),
+  establishedYear: integer("established_year"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User storage table (required for Replit Auth) - updated for multi-school
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { enum: ["admin", "teacher", "parent"] }).notNull().default("parent"),
+  role: varchar("role", { enum: ["superadmin", "admin", "teacher", "parent"] }).notNull().default("parent"),
+  schoolId: integer("school_id").references(() => schools.id),
+  permissions: jsonb("permissions").$type<string[]>().default([]),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Classes table
+// Classes table - with school reference
 export const classes = pgTable("classes", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
   academicYear: varchar("academic_year").notNull(),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Teachers table
+// Teachers table - with school reference
 export const teachers = pgTable("teachers", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   fullName: varchar("full_name").notNull(),
   email: varchar("email"),
   phone: varchar("phone"),
@@ -58,20 +77,22 @@ export const teachers = pgTable("teachers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Parents table
+// Parents table - with school reference
 export const parents = pgTable("parents", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   fullName: varchar("full_name").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Students table
+// Students table - with school reference
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
   fullName: varchar("full_name").notNull(),
   classId: integer("class_id").references(() => classes.id),
   parentId: integer("parent_id").references(() => parents.id),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   grades: jsonb("grades").$type<Record<string, number[]>>().default({}),
   academicYear: varchar("academic_year").default("2024-2025"),
   dateOfBirth: varchar("date_of_birth"),
@@ -82,11 +103,12 @@ export const students = pgTable("students", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Report templates table
+// Report templates table - with school reference
 export const reportTemplates = pgTable("report_templates", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
   description: text("description").notNull(),
+  schoolId: integer("school_id").references(() => schools.id, { onDelete: "cascade" }),
   layout: varchar("layout", { enum: ["standard", "detailed", "compact", "portfolio"] }).notNull().default("standard"),
   includePhoto: boolean("include_photo").default(true),
   includeRadarChart: boolean("include_radar_chart").default(true),
@@ -107,7 +129,20 @@ export const reportTemplates = pgTable("report_templates", {
 });
 
 // Relations
+export const schoolsRelations = relations(schools, ({ many }) => ({
+  users: many(users),
+  teachers: many(teachers),
+  parents: many(parents),
+  students: many(students),
+  classes: many(classes),
+  reportTemplates: many(reportTemplates),
+}));
+
 export const usersRelations = relations(users, ({ one }) => ({
+  school: one(schools, {
+    fields: [users.schoolId],
+    references: [schools.id],
+  }),
   teacher: one(teachers, {
     fields: [users.id],
     references: [teachers.userId],
@@ -123,12 +158,20 @@ export const teachersRelations = relations(teachers, ({ one }) => ({
     fields: [teachers.userId],
     references: [users.id],
   }),
+  school: one(schools, {
+    fields: [teachers.schoolId],
+    references: [schools.id],
+  }),
 }));
 
 export const parentsRelations = relations(parents, ({ one, many }) => ({
   user: one(users, {
     fields: [parents.userId],
     references: [users.id],
+  }),
+  school: one(schools, {
+    fields: [parents.schoolId],
+    references: [schools.id],
   }),
   children: many(students),
 }));
@@ -142,13 +185,34 @@ export const studentsRelations = relations(students, ({ one }) => ({
     fields: [students.parentId],
     references: [parents.id],
   }),
+  school: one(schools, {
+    fields: [students.schoolId],
+    references: [schools.id],
+  }),
 }));
 
-export const classesRelations = relations(classes, ({ many }) => ({
+export const classesRelations = relations(classes, ({ many, one }) => ({
   students: many(students),
+  school: one(schools, {
+    fields: [classes.schoolId],
+    references: [schools.id],
+  }),
+}));
+
+export const reportTemplatesRelations = relations(reportTemplates, ({ one }) => ({
+  school: one(schools, {
+    fields: [reportTemplates.schoolId],
+    references: [schools.id],
+  }),
 }));
 
 // Zod schemas
+export const insertSchoolSchema = createInsertSchema(schools).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
@@ -157,6 +221,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export const insertTeacherSchema = createInsertSchema(teachers).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertParentSchema = createInsertSchema(parents).omit({
@@ -196,6 +261,8 @@ export const radarChartConfigSchema = z.object({
 });
 
 // Types
+export type InsertSchool = z.infer<typeof insertSchoolSchema>;
+export type School = typeof schools.$inferSelect;
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertTeacher = z.infer<typeof insertTeacherSchema>;

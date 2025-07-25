@@ -5,6 +5,7 @@ import {
   students,
   classes,
   reportTemplates,
+  schools,
   type User,
   type UpsertUser,
   type Teacher,
@@ -17,10 +18,12 @@ import {
   type InsertClass,
   type ReportTemplate,
   type InsertReportTemplate,
+  type School,
+  type InsertSchool,
   type GradeInput,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -64,6 +67,20 @@ export interface IStorage {
   createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate>;
   updateReportTemplate(id: number, data: Partial<ReportTemplate>): Promise<ReportTemplate>;
   deleteReportTemplate(id: number): Promise<void>;
+  
+  // SuperAdmin operations
+  getAllSchools(): Promise<School[]>;
+  createSchool(data: InsertSchool): Promise<School>;
+  updateSchool(id: number, data: Partial<School>): Promise<School>;
+  deleteSchool(id: number): Promise<void>;
+  getAllUsersWithSchools(): Promise<(User & { school?: School })[]>;
+  updateUserRole(id: string, role: string, schoolId: number | null): Promise<User>;
+  getSystemStats(): Promise<{
+    totalSchools: number;
+    totalUsers: number;
+    totalStudents: number;
+    totalTeachers: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -95,7 +112,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTeacher(teacher: InsertTeacher): Promise<Teacher> {
-    const [newTeacher] = await db.insert(teachers).values(teacher).returning();
+    const [newTeacher] = await db.insert(teachers).values([teacher]).returning();
     return newTeacher;
   }
 
@@ -103,7 +120,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(teachers)
-      .where(eq(teachers.assignedClasses, [classId]));
+      .where(sql`${teachers.assignedClasses} @> ${JSON.stringify([classId])}`);
   }
 
   // Parent operations
@@ -113,7 +130,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createParent(parent: InsertParent): Promise<Parent> {
-    const [newParent] = await db.insert(parents).values(parent).returning();
+    const [newParent] = await db.insert(parents).values([parent]).returning();
     return newParent;
   }
 
@@ -148,7 +165,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
-    const [newStudent] = await db.insert(students).values(student).returning();
+    const [newStudent] = await db.insert(students).values([student]).returning();
     return newStudent;
   }
 
@@ -226,7 +243,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTeacherAdmin(data: any): Promise<Teacher> {
-    const [newTeacher] = await db.insert(teachers).values(data).returning();
+    const [newTeacher] = await db.insert(teachers).values([data]).returning();
     return newTeacher;
   }
 
@@ -248,7 +265,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate> {
-    const [newTemplate] = await db.insert(reportTemplates).values(data).returning();
+    const [newTemplate] = await db.insert(reportTemplates).values([data]).returning();
     return newTemplate;
   }
 
@@ -263,6 +280,96 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReportTemplate(id: number): Promise<void> {
     await db.delete(reportTemplates).where(eq(reportTemplates.id, id));
+  }
+
+  // SuperAdmin operations
+  async getAllSchools(): Promise<School[]> {
+    return await db.select().from(schools);
+  }
+
+  async createSchool(data: InsertSchool): Promise<School> {
+    const [newSchool] = await db.insert(schools).values([data]).returning();
+    return newSchool;
+  }
+
+  async updateSchool(id: number, data: Partial<School>): Promise<School> {
+    const [updatedSchool] = await db
+      .update(schools)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(schools.id, id))
+      .returning();
+    return updatedSchool;
+  }
+
+  async deleteSchool(id: number): Promise<void> {
+    await db.delete(schools).where(eq(schools.id, id));
+  }
+
+  async getAllUsersWithSchools(): Promise<(User & { school?: School })[]> {
+    const result = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        role: users.role,
+        schoolId: users.schoolId,
+        permissions: users.permissions,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        schoolName: schools.name,
+      })
+      .from(users)
+      .leftJoin(schools, eq(users.schoolId, schools.id));
+
+    return result.map(row => ({
+      id: row.id,
+      email: row.email,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      profileImageUrl: row.profileImageUrl,
+      role: row.role,
+      schoolId: row.schoolId,
+      permissions: row.permissions,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      school: row.schoolName ? { name: row.schoolName } as School : undefined,
+    }));
+  }
+
+  async updateUserRole(id: string, role: string, schoolId: number | null): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ 
+        role: role as any, 
+        schoolId,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async getSystemStats(): Promise<{
+    totalSchools: number;
+    totalUsers: number;
+    totalStudents: number;
+    totalTeachers: number;
+  }> {
+    const [schoolsCount] = await db.select({ count: sql`count(*)` }).from(schools);
+    const [usersCount] = await db.select({ count: sql`count(*)` }).from(users);
+    const [studentsCount] = await db.select({ count: sql`count(*)` }).from(students);
+    const [teachersCount] = await db.select({ count: sql`count(*)` }).from(teachers);
+
+    return {
+      totalSchools: Number(schoolsCount.count),
+      totalUsers: Number(usersCount.count),
+      totalStudents: Number(studentsCount.count),
+      totalTeachers: Number(teachersCount.count),
+    };
   }
 }
 

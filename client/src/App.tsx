@@ -11,6 +11,7 @@ import GradeInput from "@/pages/GradeInput";
 import StudentProgress from "@/pages/StudentProgress";
 import RadarCharts from "@/pages/RadarCharts";
 import AdminDashboard from "@/pages/AdminDashboard";
+import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -34,6 +35,7 @@ function Router() {
           <Route path="/admin/users" component={AdminDashboard} />
           <Route path="/admin/schools" component={AdminDashboard} />
           <Route path="/admin/reports" component={AdminDashboard} />
+          <Route path="/superadmin" component={SuperAdminDashboard} />
         </>
       )}
       {/* Fallback to 404 */}
