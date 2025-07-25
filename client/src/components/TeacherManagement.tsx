@@ -168,23 +168,40 @@ export default function TeacherManagement() {
     setIsDialogOpen(true);
   };
 
-  // Get unique academic years from teachers
-  const academicYears = Array.from(new Set(teachers?.map((teacher: any) => teacher.academicYear).filter(Boolean))) || [];
+  // Get unique academic years from all teacher assignments
+  const academicYears = Array.from(new Set(
+    (teachers || []).flatMap((teacher: any) => 
+      teacher.assignments?.map((assignment: any) => assignment.academicYear) || 
+      (teacher.academicYear ? [teacher.academicYear] : [])
+    ).filter(Boolean)
+  )) || [];
+  
+  // Ensure current year is included and at the top
   if (!academicYears.includes("2025/2026")) {
     academicYears.unshift("2025/2026");
+  } else {
+    // Move 2025/2026 to the front if it exists
+    const currentIndex = academicYears.indexOf("2025/2026");
+    if (currentIndex > 0) {
+      academicYears.splice(currentIndex, 1);
+      academicYears.unshift("2025/2026");
+    }
   }
 
   // Filter teachers
-  const filteredTeachers = teachers?.filter((teacher: any) => {
+  const filteredTeachers = (teachers || []).filter((teacher: any) => {
     const matchesSearch = teacher.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          teacher.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesSchool = !selectedSchool || selectedSchool === "ALL_SCHOOLS" || teacher.schoolName === selectedSchool;
     
-    const matchesAcademicYear = !selectedAcademicYear || selectedAcademicYear === "ALL_YEARS" || teacher.academicYear === selectedAcademicYear;
+    // Check if teacher has assignment for selected academic year
+    const matchesAcademicYear = !selectedAcademicYear || selectedAcademicYear === "ALL_YEARS" || 
+      (teacher.assignments && teacher.assignments.some((assignment: any) => assignment.academicYear === selectedAcademicYear)) ||
+      (teacher.academicYear === selectedAcademicYear);
     
     return matchesSearch && matchesSchool && matchesAcademicYear;
-  }) || [];
+  });
 
   // Clear all filters
   const clearFilters = () => {
@@ -223,10 +240,10 @@ export default function TeacherManagement() {
             onChange: setSelectedSchool,
             options: [
               { value: "ALL_SCHOOLS", label: "All Schools" },
-              ...(schools?.map((school: any) => ({
+              ...((schools || []).map((school: any) => ({
                 value: school.name,
                 label: school.name
-              })) || [])
+              })))
             ],
             placeholder: "All Schools",
             icon: <School className="h-4 w-4 text-gray-500" />
@@ -248,9 +265,9 @@ export default function TeacherManagement() {
           }
         ]}
         onClearFilters={clearFilters}
-        hasActiveFilters={hasActiveFilters}
+        hasActiveFilters={!!hasActiveFilters}
         resultCount={filteredTeachers.length}
-        totalCount={teachers?.length || 0}
+        totalCount={(teachers || []).length}
         itemName="teachers"
       />
 
@@ -315,7 +332,7 @@ export default function TeacherManagement() {
                 render: (teacher) => (
                   <div className="flex flex-wrap gap-1">
                     {teacher.assignedClasses?.map((classId: number) => {
-                      const className = classes?.find((c: any) => c.id === classId)?.name;
+                      const className = (classes || []).find((c: any) => c.id === classId)?.name;
                       return className ? (
                         <Badge key={classId} variant="secondary" className="text-xs">
                           {className}
@@ -476,7 +493,7 @@ export default function TeacherManagement() {
                       {classesLoading ? (
                         <p className="text-sm text-gray-500">Loading classes...</p>
                       ) : (
-                        classes?.map((cls: any) => (
+                        (classes || []).map((cls: any) => (
                           <FormField
                             key={cls.id}
                             control={form.control}

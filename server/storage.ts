@@ -346,7 +346,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeachersWithDetails(): Promise<any[]> {
-    // Get teachers with their current assignments
+    // Get teachers with their assignments for all academic years
     const teachersWithAssignments = await db
       .select({
         id: teachers.id,
@@ -369,10 +369,7 @@ export class DatabaseStorage implements IStorage {
         schoolCode: schools.schoolCode,
       })
       .from(teachers)
-      .leftJoin(teacherAssignments, and(
-        eq(teachers.id, teacherAssignments.teacherId),
-        eq(teacherAssignments.academicYear, '2025/2026')
-      ))
+      .leftJoin(teacherAssignments, eq(teachers.id, teacherAssignments.teacherId))
       .leftJoin(schools, eq(teacherAssignments.schoolId, schools.id));
     
     // Group by teacher and merge assignments
@@ -380,6 +377,12 @@ export class DatabaseStorage implements IStorage {
     
     for (const row of teachersWithAssignments) {
       if (!teacherMap.has(row.id)) {
+        // Find the current (2025/2026) assignment for backward compatibility
+        const currentAssignments = teachersWithAssignments.filter(r => 
+          r.id === row.id && r.academicYear === '2025/2026'
+        );
+        const currentAssignment = currentAssignments[0];
+        
         teacherMap.set(row.id, {
           id: row.id,
           userId: row.userId,
@@ -390,28 +393,33 @@ export class DatabaseStorage implements IStorage {
           isActive: row.isActive,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
-          // For backward compatibility, include assignment data directly on teacher
-          subjects: row.subjects || [],
-          assignedClasses: row.assignedClasses || [],
-          schoolId: row.schoolId,
-          schoolName: row.schoolName,
-          schoolCode: row.schoolCode,
+          // For backward compatibility, include current assignment data directly on teacher
+          subjects: currentAssignment?.subjects || [],
+          assignedClasses: currentAssignment?.assignedClasses || [],
+          schoolId: currentAssignment?.schoolId,
+          schoolName: currentAssignment?.schoolName,
+          schoolCode: currentAssignment?.schoolCode,
+          academicYear: currentAssignment?.academicYear || '2025/2026', // Add academicYear for filtering
           assignments: []
         });
       }
       
       // Add assignment if it exists
       if (row.assignmentId) {
-        teacherMap.get(row.id).assignments.push({
-          id: row.assignmentId,
-          schoolId: row.schoolId,
-          academicYear: row.academicYear,
-          subjects: row.subjects,
-          assignedClasses: row.assignedClasses,
-          isActive: row.assignmentActive,
-          schoolName: row.schoolName,
-          schoolCode: row.schoolCode,
-        });
+        const teacher = teacherMap.get(row.id);
+        const existingAssignment = teacher.assignments.find(a => a.id === row.assignmentId);
+        if (!existingAssignment) {
+          teacher.assignments.push({
+            id: row.assignmentId,
+            schoolId: row.schoolId,
+            academicYear: row.academicYear,
+            subjects: row.subjects,
+            assignedClasses: row.assignedClasses,
+            isActive: row.assignmentActive,
+            schoolName: row.schoolName,
+            schoolCode: row.schoolCode,
+          });
+        }
       }
     }
     
