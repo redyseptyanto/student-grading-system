@@ -120,21 +120,15 @@ export default function ClassManagement() {
   });
 
   const { data: studentGroups = [], isLoading: groupsLoading } = useQuery<StudentGroup[]>({
-    queryKey: ['/api/student-groups', selectedClassId],
-    queryFn: async () => {
-      const params = selectedClassId ? `?classId=${selectedClassId}` : '';
-      return await apiRequest(`/api/student-groups${params}`);
-    },
+    queryKey: selectedClassId 
+      ? ['/api/student-groups', `?classId=${selectedClassId}`]
+      : ['/api/student-groups'],
   });
 
   // Class mutations
   const createClassMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('/api/classes', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return await apiRequest('POST', '/api/classes', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
@@ -153,11 +147,7 @@ export default function ClassManagement() {
 
   const updateClassMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return await apiRequest(`/api/classes/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return await apiRequest('PUT', `/api/classes/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
@@ -175,7 +165,7 @@ export default function ClassManagement() {
 
   const deleteClassMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/classes/${id}`, { method: 'DELETE' });
+      return await apiRequest('DELETE', `/api/classes/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
@@ -194,11 +184,7 @@ export default function ClassManagement() {
   // Student Group mutations
   const createGroupMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('/api/student-groups', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return await apiRequest('POST', '/api/student-groups', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
@@ -216,11 +202,7 @@ export default function ClassManagement() {
 
   const updateGroupMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return await apiRequest(`/api/student-groups/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return await apiRequest('PUT', `/api/student-groups/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
@@ -238,7 +220,7 @@ export default function ClassManagement() {
 
   const deleteGroupMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/student-groups/${id}`, { method: 'DELETE' });
+      return await apiRequest('DELETE', `/api/student-groups/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
