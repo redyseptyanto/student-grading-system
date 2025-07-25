@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { School, User, Teacher, Student, InsertSchool, UpsertUser } from "@shared/schema";
-import { Trash2, Edit, Plus, Users, GraduationCap, School as SchoolIcon, Settings } from "lucide-react";
+import { Trash2, Edit, Plus, Users, GraduationCap, School as SchoolIcon, Settings, Search, Filter, X } from "lucide-react";
 
 export default function SuperAdminDashboard() {
   const { user, isLoading: authLoading } = useAuth();
@@ -26,6 +26,15 @@ export default function SuperAdminDashboard() {
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  
+  // Search and Filter states
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [userSchoolFilter, setUserSchoolFilter] = useState("all");
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
+  
+  const [schoolSearchTerm, setSchoolSearchTerm] = useState("");
+  const [schoolStatusFilter, setSchoolStatusFilter] = useState("all");
 
   // Queries
   const { data: schools = [], isLoading: schoolsLoading } = useQuery({
@@ -257,6 +266,53 @@ export default function SuperAdminDashboard() {
     });
   };
 
+  // Filter and search functions
+  const filteredUsers = allUsers.filter((user: User) => {
+    const searchMatch = userSearchTerm === "" || 
+      user.firstName?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+      user.lastName?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(userSearchTerm.toLowerCase());
+    
+    const roleMatch = userRoleFilter === "all" || 
+      (user as any).roles?.includes(userRoleFilter) || 
+      (user as any).role === userRoleFilter;
+    
+    const schoolMatch = userSchoolFilter === "all" || 
+      (user as any).schoolId?.toString() === userSchoolFilter;
+    
+    const statusMatch = userStatusFilter === "all" || 
+      (userStatusFilter === "active" && (user as any).isActive !== false) ||
+      (userStatusFilter === "inactive" && (user as any).isActive === false);
+    
+    return searchMatch && roleMatch && schoolMatch && statusMatch;
+  });
+
+  const filteredSchools = schools.filter((school: School) => {
+    const searchMatch = schoolSearchTerm === "" ||
+      school.name.toLowerCase().includes(schoolSearchTerm.toLowerCase()) ||
+      school.address?.toLowerCase().includes(schoolSearchTerm.toLowerCase()) ||
+      school.principalName?.toLowerCase().includes(schoolSearchTerm.toLowerCase());
+    
+    const statusMatch = schoolStatusFilter === "all" ||
+      (schoolStatusFilter === "active" && school.isActive !== false) ||
+      (schoolStatusFilter === "inactive" && school.isActive === false);
+    
+    return searchMatch && statusMatch;
+  });
+
+  // Clear all filters
+  const clearUserFilters = () => {
+    setUserSearchTerm("");
+    setUserRoleFilter("all");
+    setUserSchoolFilter("all");
+    setUserStatusFilter("all");
+  };
+
+  const clearSchoolFilters = () => {
+    setSchoolSearchTerm("");
+    setSchoolStatusFilter("all");
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
@@ -438,6 +494,46 @@ export default function SuperAdminDashboard() {
             </Dialog>
           </div>
 
+          {/* School Search and Filter Controls */}
+          <Card className="p-4">
+            <div className="flex flex-col lg:flex-row gap-4 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search schools by name, address, or principal..."
+                  value={schoolSearchTerm}
+                  onChange={(e) => setSchoolSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2 items-center">
+                <Select value={schoolStatusFilter} onValueChange={setSchoolStatusFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  onClick={clearSchoolFilters}
+                  className="px-3"
+                  title="Clear filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {(schoolSearchTerm || schoolStatusFilter !== "all") && (
+              <div className="mt-2 text-sm text-gray-600">
+                Showing {filteredSchools.length} of {schools.length} schools
+              </div>
+            )}
+          </Card>
+
           {schoolsLoading ? (
             <div>Loading schools...</div>
           ) : (
@@ -454,7 +550,7 @@ export default function SuperAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(schools as School[]).map((school: School) => (
+                    {filteredSchools.map((school: School) => (
                       <TableRow key={school.id}>
                         <TableCell className="font-medium">{school.name}</TableCell>
                         <TableCell>{school.principalName}</TableCell>
@@ -505,6 +601,71 @@ export default function SuperAdminDashboard() {
             <h2 className="text-2xl font-bold">User & Role Management</h2>
           </div>
 
+          {/* User Search and Filter Controls */}
+          <Card className="p-4">
+            <div className="flex flex-col lg:flex-row gap-4 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search users by name or email..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2 items-center flex-wrap">
+                <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="superadmin">SuperAdmin</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="teacher">Teacher</SelectItem>
+                    <SelectItem value="parent">Parent</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={userSchoolFilter} onValueChange={setUserSchoolFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="School" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Schools</SelectItem>
+                    {schools.map((school: School) => (
+                      <SelectItem key={school.id} value={school.id.toString()}>
+                        {school.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={userStatusFilter} onValueChange={setUserStatusFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  onClick={clearUserFilters}
+                  className="px-3"
+                  title="Clear filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {(userSearchTerm || userRoleFilter !== "all" || userSchoolFilter !== "all" || userStatusFilter !== "all") && (
+              <div className="mt-2 text-sm text-gray-600">
+                Showing {filteredUsers.length} of {allUsers.length} users
+              </div>
+            )}
+          </Card>
+
           {usersLoading ? (
             <div>Loading users...</div>
           ) : (
@@ -521,7 +682,7 @@ export default function SuperAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(allUsers as (User & { school?: School })[]).map((user: User & { school?: School }) => (
+                    {filteredUsers.map((user: User & { school?: School }) => (
                       <TableRow key={user.id}>
                         <TableCell>
                           <div>
