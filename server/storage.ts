@@ -38,6 +38,7 @@ export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  getUserEffectiveSchool(userId: string): Promise<School | undefined>;
   
   // Teacher operations
   getTeacher(userId: string): Promise<Teacher | undefined>;
@@ -134,6 +135,56 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async getUserEffectiveSchool(userId: string): Promise<School | undefined> {
+    // First check if user has multi-school assignments
+    const [schoolAssignment] = await db
+      .select({
+        schoolId: userSchoolAssignments.schoolId,
+        schoolName: schools.name,
+        schoolCode: schools.schoolCode,
+        address: schools.address,
+        phone: schools.phone,
+        email: schools.email,
+        principalName: schools.principalName,
+        establishedYear: schools.establishedYear,
+        isActive: schools.isActive,
+        createdAt: schools.createdAt,
+        updatedAt: schools.updatedAt,
+      })
+      .from(userSchoolAssignments)
+      .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
+      .where(and(
+        eq(userSchoolAssignments.userId, userId),
+        eq(userSchoolAssignments.isActive, true)
+      ))
+      .limit(1);
+
+    if (schoolAssignment) {
+      return {
+        id: schoolAssignment.schoolId,
+        name: schoolAssignment.schoolName || '',
+        schoolCode: schoolAssignment.schoolCode || '',
+        address: schoolAssignment.address || '',
+        phone: schoolAssignment.phone || '',
+        email: schoolAssignment.email || '',
+        principalName: schoolAssignment.principalName || '',
+        establishedYear: schoolAssignment.establishedYear || null,
+        isActive: schoolAssignment.isActive || true,
+        createdAt: schoolAssignment.createdAt || new Date(),
+        updatedAt: schoolAssignment.updatedAt || new Date(),
+      };
+    }
+
+    // Fallback to user's primary school
+    const user = await this.getUser(userId);
+    if (user?.schoolId) {
+      const [school] = await db.select().from(schools).where(eq(schools.id, user.schoolId));
+      return school;
+    }
+
+    return undefined;
   }
 
   // Teacher operations

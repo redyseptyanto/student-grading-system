@@ -32,6 +32,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
+      // Get effective school (from multi-school assignments or primary school)
+      const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+      
       // Get additional role-specific data
       let roleData = null;
       if (user.roles.includes('teacher')) {
@@ -40,10 +43,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         roleData = await storage.getParent(userId);
       }
       
-      res.json({ ...user, roleData });
+      res.json({ ...user, roleData, effectiveSchool });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Get user's effective school
+  app.get('/api/auth/user/school', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+      res.json({ school: effectiveSchool });
+    } catch (error) {
+      console.error("Error fetching user's effective school:", error);
+      res.status(500).json({ message: "Failed to fetch user's school" });
     }
   });
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Card,
   CardContent,
@@ -185,7 +186,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       teacherId: newGroupTeacherId && newGroupTeacherId !== "no-teacher" ? parseInt(newGroupTeacherId) : null,
       description: newGroupDescription,
       maxStudents: parseInt(newGroupMaxStudents),
-      schoolId: 1, // TODO: Get from user context
+      schoolId: effectiveSchool?.id || 1,
     };
     createInlineGroupMutation.mutate(data);
   };
@@ -609,11 +610,15 @@ interface School {
 
 export default function ClassManagement() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isCreateClassOpen, setIsCreateClassOpen] = useState(false);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [editingGroup, setEditingGroup] = useState<StudentGroup | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  
+  // Get effective school from user data
+  const effectiveSchool = (user as any)?.effectiveSchool;
   
   // Filter states
   const [classSearchTerm, setClassSearchTerm] = useState("");
@@ -632,9 +637,9 @@ export default function ClassManagement() {
     queryKey: ['/api/admin/teachers'],
   });
 
-  const { data: schools = [], isLoading: schoolsLoading } = useQuery<School[]>({
-    queryKey: ['/api/superadmin/schools'],
-  });
+  // For non-superadmin users, use their effective school instead of fetching all schools
+  const schools = effectiveSchool ? [effectiveSchool] : [];
+  const schoolsLoading = false;
 
   const { data: studentGroups = [], isLoading: groupsLoading } = useQuery<StudentGroup[]>({
     queryKey: selectedClassId 
@@ -759,7 +764,7 @@ export default function ClassManagement() {
       name: formData.get('name'),
       academicYear: formData.get('academicYear'),
       capacity: parseInt(formData.get('capacity') as string),
-      schoolId: 1, // TODO: Get from user context
+      schoolId: effectiveSchool?.id || 1,
     };
     createClassMutation.mutate(data);
   };
@@ -788,7 +793,7 @@ export default function ClassManagement() {
       teacherId: teacherId ? parseInt(teacherId as string) : null,
       description: formData.get('description'),
       maxStudents: parseInt(formData.get('maxStudents') as string),
-      schoolId: 1, // TODO: Get from user context
+      schoolId: effectiveSchool?.id || 1,
     };
     createGroupMutation.mutate(data);
   };
@@ -820,8 +825,13 @@ export default function ClassManagement() {
   };
 
   const getSchoolName = (schoolId: number) => {
+    // Use the effective school if it matches the requested schoolId
+    if (effectiveSchool && effectiveSchool.id === schoolId) {
+      return effectiveSchool.name;
+    }
+    // Fallback to searching in schools array (for superadmin users)
     const school = schools.find((s: School) => s.id === schoolId);
-    return school ? school.name : 'Unknown School';
+    return school ? school.name : (effectiveSchool?.name || 'School');
   };
 
   // Get unique academic years from classes
