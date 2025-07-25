@@ -39,6 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus,
   Edit,
@@ -66,12 +67,20 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const [newGroupDescription, setNewGroupDescription] = useState("");
   const [newGroupMaxStudents, setNewGroupMaxStudents] = useState("10");
   const [editingInlineGroup, setEditingInlineGroup] = useState<StudentGroup | null>(null);
+  const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
+  const [assignToGroupId, setAssignToGroupId] = useState<string>("no-group");
   const { toast } = useToast();
 
   // Get groups for this specific class
   const { data: classGroups, isLoading: groupsLoading } = useQuery({
     queryKey: ['/api/student-groups', 'class', classId],
     select: (data: StudentGroup[]) => data.filter((group: StudentGroup) => group.classId === classId),
+  });
+
+  // Get students in this class
+  const { data: classStudents, isLoading: studentsLoading } = useQuery({
+    queryKey: ['/api/students', 'class', classId],
+    select: (data: Student[]) => data.filter((student: Student) => student.classId === classId),
   });
 
   // Create group mutation
@@ -133,6 +142,29 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
     },
   });
 
+  // Assign students to group mutation
+  const assignStudentsMutation = useMutation({
+    mutationFn: async ({ studentIds, groupId }: { studentIds: number[]; groupId: number | null }) => {
+      const promises = studentIds.map(studentId => 
+        apiRequest('PUT', `/api/students/${studentId}/assign-group`, { groupId })
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      setSelectedStudents(new Set());
+      setAssignToGroupId("no-group");
+      toast({ title: "Success", description: "Students assigned to group successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign students to group",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateInlineGroup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
@@ -163,6 +195,47 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const getTeacherName = (teacherId?: number) => {
     const teacher = teachers.find((t: Teacher) => t.id === teacherId);
     return teacher ? teacher.fullName : 'Unassigned';
+  };
+
+  const getGroupName = (groupId?: number) => {
+    if (!groupId) return 'No Group';
+    const group = (classGroups as StudentGroup[])?.find(g => g.id === groupId);
+    return group ? group.name : 'Unknown Group';
+  };
+
+  const handleStudentToggle = (studentId: number) => {
+    const newSelection = new Set(selectedStudents);
+    if (newSelection.has(studentId)) {
+      newSelection.delete(studentId);
+    } else {
+      newSelection.add(studentId);
+    }
+    setSelectedStudents(newSelection);
+  };
+
+  const handleAssignStudents = () => {
+    if (selectedStudents.size === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one student to assign",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const groupId = assignToGroupId === "no-group" ? null : parseInt(assignToGroupId);
+    assignStudentsMutation.mutate({
+      studentIds: Array.from(selectedStudents),
+      groupId
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedStudents.size === (classStudents as Student[])?.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set((classStudents as Student[])?.map(s => s.id) || []));
+    }
   };
 
   return (
@@ -365,6 +438,110 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Student Assignment Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Assign Students to Groups</CardTitle>
+          <p className="text-sm text-gray-600">
+            Select students from {className} and assign them to groups
+          </p>
+        </CardHeader>
+        <CardContent>
+          {studentsLoading ? (
+            <div className="flex justify-center p-4">Loading students...</div>
+          ) : (classStudents as Student[])?.length === 0 ? (
+            <div className="text-center p-6 text-gray-500">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No students in this class</p>
+              <p className="text-sm">Add students to this class first</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Assignment Controls */}
+              <div className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <Label htmlFor="assignToGroup">Assign selected students to:</Label>
+                  <Select value={assignToGroupId} onValueChange={setAssignToGroupId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-group">Remove from groups</SelectItem>
+                      {(classGroups as StudentGroup[])?.filter(g => g.isActive).map((group: StudentGroup) => (
+                        <SelectItem key={group.id} value={group.id.toString()}>
+                          {group.name} ({getTeacherName(group.teacherId)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAll}
+                  >
+                    {selectedStudents.size === (classStudents as Student[])?.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                  <Button
+                    onClick={handleAssignStudents}
+                    disabled={selectedStudents.size === 0 || assignStudentsMutation.isPending}
+                    className="flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    {assignStudentsMutation.isPending ? 'Assigning...' : `Assign (${selectedStudents.size})`}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Students List */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-700 mb-2">
+                  Students in {className} ({(classStudents as Student[])?.length || 0} total)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {(classStudents as Student[])?.map((student: Student) => (
+                    <div
+                      key={student.id}
+                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                        selectedStudents.has(student.id)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => handleStudentToggle(student.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={selectedStudents.has(student.id)}
+                          onCheckedChange={() => handleStudentToggle(student.id)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{student.fullName}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Group: {getGroupName(student.groupId)}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            ID: {student.id}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selectedStudents.size > 0 && (
+                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  <strong>{selectedStudents.size}</strong> student{selectedStudents.size !== 1 ? 's' : ''} selected
+                </div>
+              )}
             </div>
           )}
         </CardContent>
