@@ -199,7 +199,8 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
 
   const getGroupName = (groupId?: number) => {
     if (!groupId) return 'No Group';
-    const group = (classGroups as StudentGroup[])?.find(g => g.id === groupId);
+    if (!Array.isArray(classGroups)) return 'Unknown Group';
+    const group = classGroups.find(g => g.id === groupId);
     return group ? group.name : 'Unknown Group';
   };
 
@@ -231,10 +232,10 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   };
 
   const handleSelectAll = () => {
-    if (selectedStudents.size === (classStudents as Student[])?.length) {
+    if (Array.isArray(classStudents) && selectedStudents.size === classStudents.length) {
       setSelectedStudents(new Set());
-    } else {
-      setSelectedStudents(new Set((classStudents as Student[])?.map(s => s.id) || []));
+    } else if (Array.isArray(classStudents)) {
+      setSelectedStudents(new Set(classStudents.map(s => s.id)));
     }
   };
 
@@ -319,12 +320,12 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       {/* Existing Groups */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Existing Groups ({(classGroups as StudentGroup[])?.length || 0})</CardTitle>
+          <CardTitle className="text-base">Existing Groups ({Array.isArray(classGroups) ? classGroups.length : 0})</CardTitle>
         </CardHeader>
         <CardContent>
           {groupsLoading ? (
             <div className="flex justify-center p-4">Loading groups...</div>
-          ) : (classGroups as StudentGroup[])?.length === 0 ? (
+          ) : !Array.isArray(classGroups) || classGroups.length === 0 ? (
             <div className="text-center p-6 text-gray-500">
               <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>No groups created yet</p>
@@ -332,7 +333,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
             </div>
           ) : (
             <div className="space-y-3">
-              {(classGroups as StudentGroup[])?.map((group: StudentGroup) => (
+              {Array.isArray(classGroups) && classGroups.map((group: StudentGroup) => (
                 <div key={group.id} className="border rounded-lg p-4">
                   {editingInlineGroup?.id === group.id ? (
                     // Edit form
@@ -454,7 +455,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
         <CardContent>
           {studentsLoading ? (
             <div className="flex justify-center p-4">Loading students...</div>
-          ) : (classStudents as Student[])?.length === 0 ? (
+          ) : !Array.isArray(classStudents) || classStudents.length === 0 ? (
             <div className="text-center p-6 text-gray-500">
               <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>No students in this class</p>
@@ -472,7 +473,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="no-group">Remove from groups</SelectItem>
-                      {(classGroups as StudentGroup[])?.filter(g => g.isActive).map((group: StudentGroup) => (
+                      {Array.isArray(classGroups) && classGroups.filter(g => g.isActive).map((group: StudentGroup) => (
                         <SelectItem key={group.id} value={group.id.toString()}>
                           {group.name} ({getTeacherName(group.teacherId)})
                         </SelectItem>
@@ -487,7 +488,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                     size="sm"
                     onClick={handleSelectAll}
                   >
-                    {selectedStudents.size === (classStudents as Student[])?.length ? 'Deselect All' : 'Select All'}
+                    {Array.isArray(classStudents) && selectedStudents.size === classStudents.length ? 'Deselect All' : 'Select All'}
                   </Button>
                   <Button
                     onClick={handleAssignStudents}
@@ -503,10 +504,10 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
               {/* Students List */}
               <div className="space-y-2">
                 <div className="text-sm font-medium text-gray-700 mb-2">
-                  Students in {className} ({(classStudents as Student[])?.length || 0} total)
+                  Students in {className} ({Array.isArray(classStudents) ? classStudents.length : 0} total)
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {(classStudents as Student[])?.map((student: Student) => (
+                  {Array.isArray(classStudents) && classStudents.map((student: Student) => (
                     <div
                       key={student.id}
                       className={`border rounded-lg p-3 cursor-pointer transition-colors ${
