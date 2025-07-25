@@ -17,6 +17,7 @@ import { Plus, Edit, Trash2, Users, UserPlus, School, Calendar } from "lucide-re
 import { useToast } from "@/hooks/use-toast";
 import BulkStudentAddDialog from "./BulkStudentAddDialog";
 import FilterBar from "@/components/ui/FilterBar";
+import PaginatedTable from "@/components/ui/PaginatedTable";
 
 const studentFormSchema = z.object({
   nsp: z.string().optional(),
@@ -40,6 +41,7 @@ type StudentFormData = z.infer<typeof studentFormSchema>;
 
 export default function StudentManagement() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterSchool, setFilterSchool] = useState<string>("ALL_SCHOOLS");
   const [filterClass, setFilterClass] = useState<string>("ALL_CLASSES");
   const [filterYear, setFilterYear] = useState<string>("ALL_YEARS");
   const [editingStudent, setEditingStudent] = useState<any>(null);
@@ -223,20 +225,22 @@ export default function StudentManagement() {
   // Filter students
   const filteredStudents = students?.filter((student: any) => {
     const matchesSearch = student.fullName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSchool = filterSchool === "ALL_SCHOOLS" || student.schoolId?.toString() === filterSchool;
     const matchesClass = filterClass === "ALL_CLASSES" || student.classId?.toString() === filterClass;
     const matchesYear = filterYear === "ALL_YEARS" || student.academicYear === filterYear;
-    return matchesSearch && matchesClass && matchesYear;
+    return matchesSearch && matchesSchool && matchesClass && matchesYear;
   }) || [];
 
   // Clear all filters
   const clearFilters = () => {
     setSearchTerm("");
+    setFilterSchool("ALL_SCHOOLS");
     setFilterClass("ALL_CLASSES");
     setFilterYear("ALL_YEARS");
   };
 
   // Check if any filters are active
-  const hasActiveFilters = searchTerm || (filterClass && filterClass !== "ALL_CLASSES") || (filterYear && filterYear !== "ALL_YEARS");
+  const hasActiveFilters = searchTerm || (filterSchool && filterSchool !== "ALL_SCHOOLS") || (filterClass && filterClass !== "ALL_CLASSES") || (filterYear && filterYear !== "ALL_YEARS");
 
   return (
     <div className="space-y-6">
@@ -269,18 +273,18 @@ export default function StudentManagement() {
         searchPlaceholder="Search students by name..."
         filters={[
           {
-            id: "class",
-            label: "Class",
-            value: filterClass,
-            onChange: setFilterClass,
+            id: "school",
+            label: "School",
+            value: filterSchool,
+            onChange: setFilterSchool,
             options: [
-              { value: "ALL_CLASSES", label: "All Classes" },
-              ...(classes?.map((cls: any) => ({
-                value: cls.id.toString(),
-                label: cls.name
+              { value: "ALL_SCHOOLS", label: "All Schools" },
+              ...(schools?.map((school: any) => ({
+                value: school.id.toString(),
+                label: school.name
               })) || [])
             ],
-            placeholder: "All Classes",
+            placeholder: "All Schools",
             icon: <School className="h-4 w-4 text-gray-500" />
           },
           {
@@ -297,6 +301,21 @@ export default function StudentManagement() {
             ],
             placeholder: "All Years",
             icon: <Calendar className="h-4 w-4 text-gray-500" />
+          },
+          {
+            id: "class",
+            label: "Class",
+            value: filterClass,
+            onChange: setFilterClass,
+            options: [
+              { value: "ALL_CLASSES", label: "All Classes" },
+              ...(classes?.map((cls: any) => ({
+                value: cls.id.toString(),
+                label: cls.name
+              })) || [])
+            ],
+            placeholder: "All Classes",
+            icon: <Users className="h-4 w-4 text-gray-500" />
           }
         ]}
         onClearFilters={clearFilters}
@@ -315,92 +334,67 @@ export default function StudentManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {studentsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p>Loading students...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>NSP</TableHead>
-                    <TableHead>NIS</TableHead>
-                    <TableHead>Full Name</TableHead>
-                    <TableHead>Nickname</TableHead>
-                    <TableHead>Gender</TableHead>
-                    <TableHead>School</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Group</TableHead>
-                    <TableHead>Academic Year</TableHead>
-                    <TableHead>No Absence</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStudents.map((student: any) => (
-                    <TableRow key={student.id}>
-                      <TableCell>{student.nsp || "-"}</TableCell>
-                      <TableCell>{student.nis || "-"}</TableCell>
-                      <TableCell className="font-medium">{student.fullName}</TableCell>
-                      <TableCell>{student.nickname || "-"}</TableCell>
-                      <TableCell>{student.gender || "-"}</TableCell>
-                      <TableCell>
-                        {schools?.find((s: any) => s.id === student.schoolId)?.schoolCode || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {classes?.find((c: any) => c.id === student.classId)?.name || 'Unassigned'}
-                      </TableCell>
-                      <TableCell>
-                        {student.groupId ? `Group ${student.groupId}` : "-"}
-                      </TableCell>
-                      <TableCell>{student.academicYear || '2024-2025'}</TableCell>
-                      <TableCell>{student.noAbsence || 0}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={student.isActive !== false}
-                            onCheckedChange={(checked) => 
-                              toggleStudentStatusMutation.mutate({ 
-                                id: student.id, 
-                                isActive: checked 
-                              })
-                            }
-                          />
-                          <Badge variant={student.isActive !== false ? "default" : "secondary"}>
-                            {student.status || (student.isActive !== false ? "Active" : "Inactive")}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(student)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteStudentMutation.mutate(student.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <PaginatedTable
+            data={filteredStudents}
+            loading={studentsLoading}
+            itemsPerPage={10}
+            emptyMessage="No students found"
+            columns={[
+              { key: "nsp", label: "NSP", render: (student) => student.nsp || "-" },
+              { key: "nis", label: "NIS", render: (student) => student.nis || "-" },
+              { key: "fullName", label: "Full Name", render: (student) => <span className="font-medium">{student.fullName}</span> },
+              { key: "nickname", label: "Nickname", render: (student) => student.nickname || "-" },
+              { key: "gender", label: "Gender", render: (student) => student.gender || "-" },
+              { key: "school", label: "School", render: (student) => schools?.find((s: any) => s.id === student.schoolId)?.schoolCode || "-" },
+              { key: "class", label: "Class", render: (student) => classes?.find((c: any) => c.id === student.classId)?.name || 'Unassigned' },
+              { key: "group", label: "Group", render: (student) => student.groupId ? `Group ${student.groupId}` : "-" },
+              { key: "academicYear", label: "Academic Year", render: (student) => student.academicYear || '2024-2025' },
+              { key: "noAbsence", label: "No Absence", render: (student) => student.noAbsence || 0 },
+              { 
+                key: "status", 
+                label: "Status", 
+                render: (student) => (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={student.isActive !== false}
+                      onCheckedChange={(checked) => 
+                        toggleStudentStatusMutation.mutate({ 
+                          id: student.id, 
+                          isActive: checked 
+                        })
+                      }
+                    />
+                    <Badge variant={student.isActive !== false ? "default" : "secondary"}>
+                      {student.status || (student.isActive !== false ? "Active" : "Inactive")}
+                    </Badge>
+                  </div>
+                )
+              },
+              { 
+                key: "actions", 
+                label: "Actions", 
+                render: (student) => (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(student)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteStudentMutation.mutate(student.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+              }
+            ]}
+          />
         </CardContent>
       </Card>
 

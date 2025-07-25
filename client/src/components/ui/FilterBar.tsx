@@ -47,9 +47,10 @@ export default function FilterBar({
     <Card>
       <CardContent className="pt-6">
         <div className="space-y-4">
-          {/* Search Bar */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
+          {/* Search and Filters in one row */}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Search Field */}
+            <div className="relative w-64">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 placeholder={searchPlaceholder}
@@ -58,8 +59,42 @@ export default function FilterBar({
                 className="pl-10"
               />
             </div>
+
+            {/* Filters */}
+            {filters.map((filter) => (
+              <div key={filter.id} className="flex items-center gap-2">
+                {filter.icon && filter.icon}
+                <Select value={filter.value} onValueChange={filter.onChange}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder={filter.placeholder || filter.label} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filter.options.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onClearFilters}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear Filters
+              </Button>
+            )}
+
+            {/* Result Count */}
             {(resultCount !== undefined && totalCount !== undefined) && (
-              <div className="flex items-center gap-2 text-sm text-gray-600 min-w-fit">
+              <div className="flex items-center gap-2 text-sm text-gray-600 ml-auto">
                 <Filter className="h-4 w-4" />
                 <span>
                   {resultCount} of {totalCount} {itemName}
@@ -67,47 +102,6 @@ export default function FilterBar({
               </div>
             )}
           </div>
-
-          {/* Filters */}
-          {filters.length > 0 && (
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Filters:</span>
-              </div>
-              
-              {filters.map((filter) => (
-                <div key={filter.id} className="flex items-center gap-2">
-                  {filter.icon && filter.icon}
-                  <Select value={filter.value} onValueChange={filter.onChange}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder={filter.placeholder || filter.label} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filter.options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-
-              {/* Clear Filters */}
-              {hasActiveFilters && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onClearFilters}
-                  className="flex items-center gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

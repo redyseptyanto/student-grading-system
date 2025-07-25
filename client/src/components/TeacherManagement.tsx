@@ -16,6 +16,7 @@ import { z } from "zod";
 import { Plus, Edit, Trash2, GraduationCap, Users, BookOpen, School, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import FilterBar from "@/components/ui/FilterBar";
+import PaginatedTable from "@/components/ui/PaginatedTable";
 
 const teacherFormSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
@@ -262,115 +263,106 @@ export default function TeacherManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {teachersLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p>Loading teachers...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>School</TableHead>
-                    <TableHead>Academic Year</TableHead>
-                    <TableHead>Subjects</TableHead>
-                    <TableHead>Assigned Classes</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTeachers.map((teacher: any) => (
-                    <TableRow key={teacher.id}>
-                      <TableCell className="font-medium">
-                        {teacher.fullName}
-                      </TableCell>
-                      <TableCell>
-                        {teacher.email || "Not provided"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <School className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">
-                            {teacher.schoolName || "Not assigned"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">
-                            {teacher.academicYear || "2025/2026"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {teacher.subjects?.slice(0, 2).map((subject: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {subject}
-                            </Badge>
-                          ))}
-                          {teacher.subjects?.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{teacher.subjects.length - 2} more
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {teacher.assignedClasses?.map((classId: number) => {
-                            const className = classes?.find((c: any) => c.id === classId)?.name;
-                            return className ? (
-                              <Badge key={classId} variant="secondary" className="text-xs">
-                                {className}
-                              </Badge>
-                            ) : null;
-                          })}
-                          {!teacher.assignedClasses?.length && (
-                            <span className="text-sm text-gray-500">No classes</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">
-                            {teacher.studentCount || 0}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(teacher)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteTeacherMutation.mutate(teacher.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <PaginatedTable
+            data={filteredTeachers}
+            loading={teachersLoading}
+            itemsPerPage={10}
+            emptyMessage="No teachers found"
+            columns={[
+              { key: "fullName", label: "Name", render: (teacher) => <span className="font-medium">{teacher.fullName}</span> },
+              { key: "email", label: "Email", render: (teacher) => teacher.email || "Not provided" },
+              { 
+                key: "school", 
+                label: "School", 
+                render: (teacher) => (
+                  <div className="flex items-center gap-1">
+                    <School className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{teacher.schoolName || "Not assigned"}</span>
+                  </div>
+                )
+              },
+              { 
+                key: "academicYear", 
+                label: "Academic Year", 
+                render: (teacher) => (
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{teacher.academicYear || "2025/2026"}</span>
+                  </div>
+                )
+              },
+              { 
+                key: "subjects", 
+                label: "Subjects", 
+                render: (teacher) => (
+                  <div className="flex flex-wrap gap-1">
+                    {teacher.subjects?.slice(0, 2).map((subject: string, index: number) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {subject}
+                      </Badge>
+                    ))}
+                    {teacher.subjects?.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{teacher.subjects.length - 2} more
+                      </Badge>
+                    )}
+                  </div>
+                )
+              },
+              { 
+                key: "assignedClasses", 
+                label: "Assigned Classes", 
+                render: (teacher) => (
+                  <div className="flex flex-wrap gap-1">
+                    {teacher.assignedClasses?.map((classId: number) => {
+                      const className = classes?.find((c: any) => c.id === classId)?.name;
+                      return className ? (
+                        <Badge key={classId} variant="secondary" className="text-xs">
+                          {className}
+                        </Badge>
+                      ) : null;
+                    })}
+                    {!teacher.assignedClasses?.length && (
+                      <span className="text-sm text-gray-500">No classes</span>
+                    )}
+                  </div>
+                )
+              },
+              { 
+                key: "students", 
+                label: "Students",
+                render: (teacher) => (
+                  <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{teacher.studentCount || 0}</span>
+                  </div>
+                )
+              },
+              { 
+                key: "actions", 
+                label: "Actions", 
+                render: (teacher) => (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(teacher)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteTeacherMutation.mutate(teacher.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+              }
+            ]}
+          />
         </CardContent>
       </Card>
 

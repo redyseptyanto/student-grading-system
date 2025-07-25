@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import FilterBar from "@/components/ui/FilterBar";
+import PaginatedTable from "@/components/ui/PaginatedTable";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -994,54 +995,50 @@ export default function ClassManagement() {
                 itemName="classes"
               />
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Class Name</TableHead>
-                    <TableHead>School</TableHead>
-                    <TableHead>Academic Year</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClasses.map((classData: Class) => (
-                    <TableRow key={classData.id}>
-                      <TableCell className="font-medium">
-                        {classData.name}
-                      </TableCell>
-                      <TableCell>{getSchoolName(classData.schoolId)}</TableCell>
-                      <TableCell>{classData.academicYear}</TableCell>
-                      <TableCell>{classData.capacity}</TableCell>
-                      <TableCell>
-                        <Badge variant={classData.isActive ? "default" : "secondary"}>
-                          {classData.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingClass(classData)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteClassMutation.mutate(classData.id)}
-                            disabled={deleteClassMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <PaginatedTable
+                data={filteredClasses}
+                loading={classesLoading}
+                itemsPerPage={10}
+                emptyMessage="No classes found"
+                columns={[
+                  { key: "name", label: "Class Name", render: (classData) => <span className="font-medium">{classData.name}</span> },
+                  { key: "school", label: "School", render: (classData) => getSchoolName(classData.schoolId) },
+                  { key: "academicYear", label: "Academic Year" },
+                  { key: "capacity", label: "Capacity" },
+                  { 
+                    key: "status", 
+                    label: "Status", 
+                    render: (classData) => (
+                      <Badge variant={classData.isActive ? "default" : "secondary"}>
+                        {classData.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    )
+                  },
+                  { 
+                    key: "actions", 
+                    label: "Actions", 
+                    render: (classData) => (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingClass(classData)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteClassMutation.mutate(classData.id)}
+                          disabled={deleteClassMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )
+                  }
+                ]}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -1214,60 +1211,51 @@ export default function ClassManagement() {
                 itemName="groups"
               />
 
-              {groupsLoading ? (
-                <div className="flex justify-center p-4">Loading groups...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Group Name</TableHead>
-                      <TableHead>School</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead>Assigned Teacher</TableHead>
-                      <TableHead>Max Students</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredGroups.map((group: StudentGroup) => (
-                      <TableRow key={group.id}>
-                        <TableCell className="font-medium">
-                          {group.name}
-                        </TableCell>
-                        <TableCell>{getSchoolName(group.schoolId)}</TableCell>
-                        <TableCell>{getClassName(group.classId)}</TableCell>
-                        <TableCell>{getTeacherName(group.teacherId)}</TableCell>
-                        <TableCell>{group.maxStudents}</TableCell>
-                        <TableCell>
-                          <Badge variant={group.isActive ? "default" : "secondary"}>
-                            {group.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingGroup(group)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteGroupMutation.mutate(group.id)}
-                              disabled={deleteGroupMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <PaginatedTable
+                data={filteredGroups}
+                loading={groupsLoading}
+                itemsPerPage={10}
+                emptyMessage="No student groups found"
+                columns={[
+                  { key: "name", label: "Group Name", render: (group) => <span className="font-medium">{group.name}</span> },
+                  { key: "school", label: "School", render: (group) => getSchoolName(group.schoolId) },
+                  { key: "class", label: "Class", render: (group) => getClassName(group.classId) },
+                  { key: "teacher", label: "Assigned Teacher", render: (group) => getTeacherName(group.teacherId) },
+                  { key: "maxStudents", label: "Max Students" },
+                  { 
+                    key: "status", 
+                    label: "Status", 
+                    render: (group) => (
+                      <Badge variant={group.isActive ? "default" : "secondary"}>
+                        {group.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    )
+                  },
+                  { 
+                    key: "actions", 
+                    label: "Actions", 
+                    render: (group) => (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingGroup(group)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteGroupMutation.mutate(group.id)}
+                          disabled={deleteGroupMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )
+                  }
+                ]}
+              />
             </CardContent>
           </Card>
         </TabsContent>
