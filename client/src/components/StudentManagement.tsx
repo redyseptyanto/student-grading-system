@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Edit, Trash2, Users, UserPlus, School, Calendar } from "lucide-react";
+import { Plus, Edit, Trash2, Users, UserPlus, School, Calendar, Search, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BulkStudentAddDialog from "./BulkStudentAddDialog";
 import FilterBar from "@/components/ui/FilterBar";
@@ -267,63 +267,102 @@ export default function StudentManagement() {
       </div>
 
       {/* Search and Filters */}
-      <FilterBar
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search students by name..."
-        filters={[
-          {
-            id: "school",
-            label: "School",
-            value: filterSchool,
-            onChange: setFilterSchool,
-            options: [
-              { value: "ALL_SCHOOLS", label: "All Schools" },
-              ...(schools?.map((school: any) => ({
-                value: school.id.toString(),
-                label: school.name
-              })) || [])
-            ],
-            placeholder: "All Schools",
-            icon: <School className="h-4 w-4 text-gray-500" />
-          },
-          {
-            id: "academicYear",
-            label: "Academic Year",
-            value: filterYear,
-            onChange: setFilterYear,
-            options: [
-              { value: "ALL_YEARS", label: "All Years" },
-              ...academicYears.map((year: string) => ({
-                value: year,
-                label: year
-              }))
-            ],
-            placeholder: "All Years",
-            icon: <Calendar className="h-4 w-4 text-gray-500" />
-          },
-          {
-            id: "class",
-            label: "Class",
-            value: filterClass,
-            onChange: setFilterClass,
-            options: [
-              { value: "ALL_CLASSES", label: "All Classes" },
-              ...(classes?.map((cls: any) => ({
-                value: cls.id.toString(),
-                label: cls.name
-              })) || [])
-            ],
-            placeholder: "All Classes",
-            icon: <Users className="h-4 w-4 text-gray-500" />
-          }
-        ]}
-        onClearFilters={clearFilters}
-        hasActiveFilters={hasActiveFilters}
-        resultCount={filteredStudents.length}
-        totalCount={students?.length || 0}
-        itemName="students"
-      />
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            {/* Search Field on Top */}
+            <div className="flex items-center justify-between">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search students by name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {(filteredStudents.length !== undefined && students?.length !== undefined) && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Filter className="h-4 w-4" />
+                  <span>
+                    {filteredStudents.length} of {students?.length || 0} students
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Filters Row - Schools, Classes, Years */}
+            <div className="flex items-center gap-4">
+              {/* School Filter */}
+              <div className="flex items-center gap-2 flex-1">
+                <School className="h-4 w-4 text-gray-500" />
+                <Select value={filterSchool} onValueChange={setFilterSchool}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="All Schools" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL_SCHOOLS">All Schools</SelectItem>
+                    {schools?.map((school: any) => (
+                      <SelectItem key={school.id} value={school.id.toString()}>
+                        {school.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Class Filter */}
+              <div className="flex items-center gap-2 flex-1">
+                <Users className="h-4 w-4 text-gray-500" />
+                <Select value={filterClass} onValueChange={setFilterClass}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="All Classes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL_CLASSES">All Classes</SelectItem>
+                    {classes?.map((cls: any) => (
+                      <SelectItem key={cls.id} value={cls.id.toString()}>
+                        {cls.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Academic Year Filter */}
+              <div className="flex items-center gap-2 flex-1">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL_YEARS">All Years</SelectItem>
+                    {academicYears.map((year: string) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Students Table */}
       <Card>
