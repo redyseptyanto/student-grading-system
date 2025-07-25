@@ -55,7 +55,7 @@ export default function SuperAdminDashboard() {
   // Mutations
   const createSchoolMutation = useMutation({
     mutationFn: async (schoolData: InsertSchool) => {
-      return await apiRequest("/api/superadmin/schools", "POST", schoolData);
+      return await apiRequest("POST", "/api/superadmin/schools", schoolData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/schools"] });
@@ -82,7 +82,7 @@ export default function SuperAdminDashboard() {
 
   const updateSchoolMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<School> }) => {
-      return await apiRequest(`/api/superadmin/schools/${id}`, "PUT", data);
+      return await apiRequest("PUT", `/api/superadmin/schools/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/schools"] });
@@ -108,7 +108,7 @@ export default function SuperAdminDashboard() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<User> }) => {
-      return await apiRequest(`/api/superadmin/users/${id}`, "PUT", data);
+      return await apiRequest("PUT", `/api/superadmin/users/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/users"] });
@@ -134,7 +134,7 @@ export default function SuperAdminDashboard() {
 
   const deleteSchoolMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/superadmin/schools/${id}`, "DELETE");
+      return await apiRequest("DELETE", `/api/superadmin/schools/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/schools"] });
@@ -160,7 +160,7 @@ export default function SuperAdminDashboard() {
   // Role management functions
   const addRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      return await apiRequest(`/api/superadmin/users/${userId}/roles`, "POST", { role });
+      return await apiRequest("POST", `/api/superadmin/users/${userId}/roles`, { role });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/users"] });
@@ -184,7 +184,7 @@ export default function SuperAdminDashboard() {
 
   const removeRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      return await apiRequest(`/api/superadmin/users/${userId}/roles/${role}`, "DELETE");
+      return await apiRequest("DELETE", `/api/superadmin/users/${userId}/roles/${role}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/users"] });
