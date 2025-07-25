@@ -31,9 +31,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get additional role-specific data
       let roleData = null;
-      if (user.role === 'teacher') {
+      if (user.roles.includes('teacher')) {
         roleData = await storage.getTeacher(userId);
-      } else if (user.role === 'parent') {
+      } else if (user.roles.includes('parent')) {
         roleData = await storage.getParent(userId);
       }
       
@@ -50,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.role !== 'teacher') {
+      if (!user || !user.roles.includes('teacher')) {
         return res.status(403).json({ message: "Only teachers can input grades" });
       }
 
@@ -83,14 +83,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let students = [];
       
-      if (user.role === 'admin') {
+      if (user.roles.includes('admin')) {
         students = await storage.getStudents();
-      } else if (user.role === 'teacher') {
+      } else if (user.roles.includes('teacher')) {
         const teacher = await storage.getTeacher(userId);
         if (teacher) {
           students = await storage.getStudentsByTeacher(teacher.id);
         }
-      } else if (user.role === 'parent') {
+      } else if (user.roles.includes('parent')) {
         const parent = await storage.getParent(userId);
         if (parent) {
           students = await storage.getStudentsByParent(parent.id);
@@ -125,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.role !== 'admin') {
+      if (!user || !user.roles.includes('admin')) {
         return res.status(403).json({ message: "Only admins can create students" });
       }
 
@@ -158,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.role !== 'admin') {
+      if (!user || !user.roles.includes('admin')) {
         return res.status(403).json({ message: "Only admins can create classes" });
       }
 
@@ -181,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.role !== 'admin') {
+      if (!user || !user.roles.includes('admin')) {
         return res.status(403).json({ message: "Only admins can create teachers" });
       }
 
@@ -204,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || user.role !== 'admin') {
+      if (!user || !user.roles.includes('admin')) {
         return res.status(403).json({ message: "Only admins can create parents" });
       }
 
@@ -268,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const requireAdmin = async (req: any, res: any, next: any) => {
     const userId = req.user?.claims?.sub;
     const user = await storage.getUser(userId);
-    if (!user || user.role !== 'admin') {
+    if (!user || !user.roles.includes('admin')) {
       return res.status(403).json({ message: "Admin access required" });
     }
     next();
@@ -439,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.getUser(userId);
-      if (!user || user.role !== "superadmin") {
+      if (!user || !user.roles.includes("superadmin")) {
         return res.status(403).json({ message: "Access denied. SuperAdmin role required." });
       }
 
@@ -507,10 +507,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/superadmin/users/:id", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
       const id = req.params.id;
-      const { role, schoolId, isActive } = req.body;
+      const { roles, schoolId, isActive } = req.body;
       
-      if (role && schoolId !== undefined) {
-        await storage.updateUserRole(id, role, schoolId);
+      if (roles && schoolId !== undefined) {
+        await storage.updateUserRoles(id, roles, schoolId);
       }
       
       if (isActive !== undefined) {
@@ -526,6 +526,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Add/Remove role endpoints
+  app.post("/api/superadmin/users/:id/roles", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { role } = req.body;
+      const user = await storage.addUserRole(id, role);
+      res.json(user);
+    } catch (error) {
+      console.error("Error adding user role:", error);
+      res.status(500).json({ message: "Failed to add user role" });
+    }
+  });
+
+  app.delete("/api/superadmin/users/:id/roles/:role", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const { id, role } = req.params;
+      const user = await storage.removeUserRole(id, role);
+      res.json(user);
+    } catch (error) {
+      console.error("Error removing user role:", error);
+      res.status(500).json({ message: "Failed to remove user role" });
     }
   });
 

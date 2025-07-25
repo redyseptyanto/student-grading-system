@@ -30,17 +30,17 @@ export default function SuperAdminDashboard() {
   // Queries
   const { data: schools = [], isLoading: schoolsLoading } = useQuery({
     queryKey: ["/api/superadmin/schools"],
-    enabled: !authLoading && (user as any)?.role === "superadmin",
+    enabled: !authLoading && (user as any)?.roles?.includes("superadmin"),
   });
 
   const { data: allUsers = [], isLoading: usersLoading } = useQuery({
     queryKey: ["/api/superadmin/users"],
-    enabled: !authLoading && (user as any)?.role === "superadmin",
+    enabled: !authLoading && (user as any)?.roles?.includes("superadmin"),
   });
 
   const { data: systemStats, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/superadmin/stats"],
-    enabled: !authLoading && (user as any)?.role === "superadmin",
+    enabled: !authLoading && (user as any)?.roles?.includes("superadmin"),
   });
 
   // Mutations
@@ -148,23 +148,62 @@ export default function SuperAdminDashboard() {
     },
   });
 
-  // Check authorization
-  if (authLoading) {
-    return <div>Loading...</div>;
-  }
+  // Role management functions
+  const addRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      return await apiRequest(`/api/superadmin/users/${userId}/roles`, "POST", { role });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/users"] });
+      toast({ title: "Success", description: "Role added successfully" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({ title: "Error", description: "Failed to add role", variant: "destructive" });
+    },
+  });
 
-  if (!user || (user as any).role !== "superadmin") {
-    return (
-      <div className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>You don't have permission to access the SuperAdmin Dashboard.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  const removeRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      return await apiRequest(`/api/superadmin/users/${userId}/roles/${role}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/users"] });
+      toast({ title: "Success", description: "Role removed successfully" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({ title: "Error", description: "Failed to remove role", variant: "destructive" });
+    },
+  });
+
+  const handleAddRole = (userId: string, role: string) => {
+    addRoleMutation.mutate({ userId, role });
+  };
+
+  const handleRemoveRole = (userId: string, role: string) => {
+    removeRoleMutation.mutate({ userId, role });
+  };
 
   const handleSchoolSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -185,6 +224,24 @@ export default function SuperAdminDashboard() {
       createSchoolMutation.mutate(schoolData);
     }
   };
+
+  // Check authorization
+  if (authLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user || !(user as any).roles?.includes("superadmin")) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>You don't have permission to access the SuperAdmin Dashboard.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   const handleUserRoleUpdate = (userId: string, newRole: string, schoolId: number | null) => {
     updateUserMutation.mutate({
@@ -457,7 +514,7 @@ export default function SuperAdminDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>User</TableHead>
-                      <TableHead>Role</TableHead>
+                      <TableHead>Roles</TableHead>
                       <TableHead>School</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
@@ -473,29 +530,52 @@ export default function SuperAdminDashboard() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Select
-                            value={user.role}
-                            onValueChange={(newRole) => handleUserRoleUpdate(user.id, newRole, user.schoolId)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="superadmin">SuperAdmin</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="teacher">Teacher</SelectItem>
-                              <SelectItem value="parent">Parent</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-wrap gap-1">
+                            {(user.roles || [user.role]).map((role: string) => (
+                              <Badge 
+                                key={role}
+                                variant={role === "superadmin" ? "default" : role === "admin" ? "secondary" : "outline"}
+                                className="flex items-center gap-1"
+                              >
+                                {role}
+                                {(user.roles?.length || 1) > 1 && (
+                                  <button
+                                    className="ml-1 text-xs hover:bg-red-500 hover:text-white rounded-full w-3 h-3 flex items-center justify-center"
+                                    onClick={() => handleRemoveRole(user.id, role)}
+                                    disabled={(user.roles?.length || 1) <= 1}
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </Badge>
+                            ))}
+                            <Select onValueChange={(role) => handleAddRole(user.id, role)}>
+                              <SelectTrigger className="w-8 h-6 p-0">
+                                <SelectValue placeholder="+" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["superadmin", "admin", "teacher", "parent"].filter(role => 
+                                  !(user.roles || [user.role]).includes(role)
+                                ).map(role => (
+                                  <SelectItem key={role} value={role}>
+                                    {role}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
                         <TableCell>
-                          {user.role === "superadmin" ? (
+                          {(user.roles || [user.role]).includes("superadmin") ? (
                             <Badge variant="outline">All Schools</Badge>
                           ) : (
                             <Select
                               value={user.schoolId?.toString() || ""}
                               onValueChange={(schoolId) => 
-                                handleUserRoleUpdate(user.id, user.role, parseInt(schoolId))
+                                updateUserMutation.mutate({ 
+                                  id: user.id, 
+                                  data: { schoolId: parseInt(schoolId) } 
+                                })
                               }
                             >
                               <SelectTrigger className="w-40">
@@ -514,19 +594,18 @@ export default function SuperAdminDashboard() {
                         <TableCell>
                           <Switch
                             checked={user.isActive ?? true}
-                            onCheckedChange={(checked) => handleUserStatusToggle(user.id, checked)}
+                            onCheckedChange={(checked) => 
+                              updateUserMutation.mutate({ 
+                                id: user.id, 
+                                data: { isActive: checked } 
+                              })
+                            }
                           />
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={
-                              user.role === "superadmin" ? "default" :
-                              user.role === "admin" ? "secondary" :
-                              user.role === "teacher" ? "outline" : "destructive"
-                            }
-                          >
-                            {user.role}
-                          </Badge>
+                          <div className="text-sm text-gray-500">
+                            {user.school?.name || (user.schoolId ? "School not found" : "No school assigned")}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

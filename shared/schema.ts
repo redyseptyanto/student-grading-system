@@ -45,7 +45,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { enum: ["superadmin", "admin", "teacher", "parent"] }).notNull().default("parent"),
+  roles: varchar("roles").array().default(["parent"]).notNull(), // Array of roles like ["admin", "teacher"]
   schoolId: integer("school_id").references(() => schools.id),
   permissions: jsonb("permissions").$type<string[]>().default([]),
   isActive: boolean("is_active").default(true),
@@ -317,3 +317,23 @@ export const ASSESSMENT_ASPECTS = [
 ] as const;
 
 export type AssessmentAspect = typeof ASSESSMENT_ASPECTS[number];
+
+// Helper functions for multi-role management
+export function hasRole(user: User, role: string): boolean {
+  return user.roles.includes(role);
+}
+
+export function hasAnyRole(user: User, roles: string[]): boolean {
+  return roles.some(role => user.roles.includes(role));
+}
+
+export function addRole(user: User, role: string): string[] {
+  if (!user.roles.includes(role)) {
+    return [...user.roles, role];
+  }
+  return user.roles;
+}
+
+export function removeRole(user: User, role: string): string[] {
+  return user.roles.filter(r => r !== role);
+}

@@ -26,20 +26,24 @@ interface SidebarProps {
 }
 
 const navigation = {
+  superadmin: [
+    { name: "SuperAdmin Dashboard", href: "/superadmin", icon: Settings },
+    { name: "System Overview", href: "/dashboard", icon: BarChart3 },
+  ],
   admin: [
-    { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
+    { name: "Admin Dashboard", href: "/admin", icon: UserCog },
     { name: "User Management", href: "/admin/users", icon: UserCog },
     { name: "School Management", href: "/admin/schools", icon: School },
     { name: "System Reports", href: "/admin/reports", icon: FileText },
   ],
   teacher: [
-    { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
+    { name: "Teacher Dashboard", href: "/dashboard", icon: BarChart3 },
     { name: "My Students", href: "/students", icon: Users },
     { name: "Grade Input", href: "/grades", icon: BookOpen },
     { name: "Reports & Charts", href: "/charts", icon: TrendingUp },
   ],
   parent: [
-    { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
+    { name: "Parent Dashboard", href: "/dashboard", icon: BarChart3 },
     { name: "My Child's Progress", href: "/progress", icon: User },
     { name: "View Report Cards", href: "/reports", icon: FileText },
     { name: "Communication", href: "/communication", icon: MessageCircle },
@@ -53,7 +57,20 @@ export function Sidebar({ className }: SidebarProps) {
 
   if (isLoading || !user) return null;
 
-  const userNavigation = navigation[user.role as keyof typeof navigation] || [];
+  // Support multi-role users by combining navigation items from all their roles
+  const userRoles = (user as any).roles || [(user as any).role];
+  const userNavigation: Array<{name: string, href: string, icon: any}> = [];
+  const seenHrefs = new Set<string>();
+
+  userRoles.forEach((role: string) => {
+    const roleNavigation = navigation[role as keyof typeof navigation] || [];
+    roleNavigation.forEach(item => {
+      if (!seenHrefs.has(item.href)) {
+        seenHrefs.add(item.href);
+        userNavigation.push(item);
+      }
+    });
+  });
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
@@ -137,7 +154,7 @@ export function Sidebar({ className }: SidebarProps) {
                 <p className="text-sm font-medium text-gray-700">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                <p className="text-xs text-gray-500 capitalize">{userRoles.join(", ")}</p>
               </div>
               <Button
                 variant="ghost"

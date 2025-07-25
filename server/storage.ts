@@ -74,7 +74,9 @@ export interface IStorage {
   updateSchool(id: number, data: Partial<School>): Promise<School>;
   deleteSchool(id: number): Promise<void>;
   getAllUsersWithSchools(): Promise<(User & { school?: School })[]>;
-  updateUserRole(id: string, role: string, schoolId: number | null): Promise<User>;
+  updateUserRoles(id: string, roles: string[], schoolId: number | null): Promise<User>;
+  addUserRole(id: string, role: string): Promise<User>;
+  removeUserRole(id: string, role: string): Promise<User>;
   getSystemStats(): Promise<{
     totalSchools: number;
     totalUsers: number;
@@ -313,7 +315,7 @@ export class DatabaseStorage implements IStorage {
         firstName: users.firstName,
         lastName: users.lastName,
         profileImageUrl: users.profileImageUrl,
-        role: users.role,
+        roles: users.roles,
         schoolId: users.schoolId,
         permissions: users.permissions,
         isActive: users.isActive,
@@ -330,7 +332,7 @@ export class DatabaseStorage implements IStorage {
       firstName: row.firstName,
       lastName: row.lastName,
       profileImageUrl: row.profileImageUrl,
-      role: row.role,
+      roles: row.roles,
       schoolId: row.schoolId,
       permissions: row.permissions,
       isActive: row.isActive,
@@ -340,17 +342,38 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async updateUserRole(id: string, role: string, schoolId: number | null): Promise<User> {
+  async updateUserRoles(id: string, roles: string[], schoolId: number | null): Promise<User> {
     const [updatedUser] = await db
       .update(users)
       .set({ 
-        role: role as any, 
+        roles, 
         schoolId,
         updatedAt: new Date() 
       })
       .where(eq(users.id, id))
       .returning();
     return updatedUser;
+  }
+
+  async addUserRole(id: string, role: string): Promise<User> {
+    const user = await this.getUser(id);
+    if (!user) throw new Error("User not found");
+    
+    const newRoles = user.roles.includes(role) ? user.roles : [...user.roles, role];
+    return this.updateUserRoles(id, newRoles, user.schoolId);
+  }
+
+  async removeUserRole(id: string, role: string): Promise<User> {
+    const user = await this.getUser(id);
+    if (!user) throw new Error("User not found");
+    
+    const newRoles = user.roles.filter(r => r !== role);
+    // Ensure user always has at least one role
+    if (newRoles.length === 0) {
+      newRoles.push("parent");
+    }
+    
+    return this.updateUserRoles(id, newRoles, user.schoolId);
   }
 
   async getSystemStats(): Promise<{
