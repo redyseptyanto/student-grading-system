@@ -534,6 +534,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teacherData = req.body;
       const teacher = await storage.createTeacherAdmin(teacherData);
+      
+      // If assignedGroups is provided, update the student groups
+      if (teacherData.assignedGroups && teacherData.assignedGroups.length > 0) {
+        await storage.assignTeacherToGroups(teacher.id, teacherData.assignedGroups);
+      }
+      
       res.json(teacher);
     } catch (error) {
       console.error("Error creating teacher:", error);
@@ -546,6 +552,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const updateData = req.body;
       const teacher = await storage.updateTeacherAdmin(id, updateData);
+      
+      // If assignedGroups is provided, update the student groups assignment
+      if (updateData.assignedGroups !== undefined) {
+        await storage.assignTeacherToGroups(id, updateData.assignedGroups);
+      }
+      
       res.json(teacher);
     } catch (error) {
       console.error("Error updating teacher:", error);

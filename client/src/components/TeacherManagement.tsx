@@ -55,8 +55,8 @@ export default function TeacherManagement() {
     queryKey: ['/api/admin/teachers'],
   });
 
-  const { data: classes, isLoading: classesLoading } = useQuery({
-    queryKey: ['/api/classes'],
+  const { data: studentGroups, isLoading: groupsLoading } = useQuery({
+    queryKey: ['/api/student-groups'],
   });
 
   const { data: schools, isLoading: schoolsLoading } = useQuery({
@@ -70,7 +70,7 @@ export default function TeacherManagement() {
       fullName: "",
       email: "",
       subjects: [],
-      assignedClasses: [],
+      assignedGroups: [],
       phone: "",
       qualifications: "",
     },
@@ -156,7 +156,7 @@ export default function TeacherManagement() {
       fullName: teacher.fullName,
       email: teacher.email || "",
       subjects: teacher.subjects || [],
-      assignedClasses: teacher.assignedClasses || [],
+      assignedGroups: teacher.assignedGroups || [],
       phone: teacher.phone || "",
       qualifications: teacher.qualifications || "",
     });
@@ -328,20 +328,20 @@ export default function TeacherManagement() {
                 )
               },
               { 
-                key: "assignedClasses", 
-                label: "Assigned Classes", 
+                key: "assignedGroups", 
+                label: "Assigned Groups", 
                 render: (teacher) => (
                   <div className="flex flex-wrap gap-1">
-                    {teacher.assignedClasses?.map((classId: number) => {
-                      const className = (classes || []).find((c: any) => c.id === classId)?.name;
-                      return className ? (
-                        <Badge key={classId} variant="secondary" className="text-xs">
-                          {className}
+                    {teacher.assignedGroups?.map((groupId: number) => {
+                      const groupName = (studentGroups || []).find((g: any) => g.id === groupId)?.name;
+                      return groupName ? (
+                        <Badge key={groupId} variant="secondary" className="text-xs">
+                          {groupName}
                         </Badge>
                       ) : null;
                     })}
-                    {!teacher.assignedClasses?.length && (
-                      <span className="text-sm text-gray-500">No classes</span>
+                    {!teacher.assignedGroups?.length && (
+                      <span className="text-sm text-gray-500">No groups</span>
                     )}
                   </div>
                 )
@@ -492,41 +492,41 @@ export default function TeacherManagement() {
               />
               <FormField
                 control={form.control}
-                name="assignedClasses"
+                name="assignedGroups"
                 render={() => (
                   <FormItem>
-                    <FormLabel>Assigned Classes</FormLabel>
+                    <FormLabel>Assigned Student Groups</FormLabel>
                     <div className="grid grid-cols-1 gap-2">
-                      {classesLoading ? (
-                        <p className="text-sm text-gray-500">Loading classes...</p>
+                      {groupsLoading ? (
+                        <p className="text-sm text-gray-500">Loading student groups...</p>
                       ) : (
-                        (classes || []).map((cls: any) => (
+                        (studentGroups || []).map((group: any) => (
                           <FormField
-                            key={cls.id}
+                            key={group.id}
                             control={form.control}
-                            name="assignedClasses"
+                            name="assignedGroups"
                             render={({ field }) => {
                               return (
                                 <FormItem
-                                  key={cls.id}
+                                  key={group.id}
                                   className="flex flex-row items-start space-x-3 space-y-0"
                                 >
                                   <FormControl>
                                     <Checkbox
-                                      checked={field.value?.includes(cls.id)}
+                                      checked={field.value?.includes(group.id)}
                                       onCheckedChange={(checked) => {
                                         return checked
-                                          ? field.onChange([...(field.value || []), cls.id])
+                                          ? field.onChange([...(field.value || []), group.id])
                                           : field.onChange(
                                               field.value?.filter(
-                                                (value) => value !== cls.id
+                                                (value) => value !== group.id
                                               )
                                             );
                                       }}
                                     />
                                   </FormControl>
                                   <FormLabel className="text-sm font-normal">
-                                    {cls.name} ({cls.academicYear || '2025/2026'})
+                                    {group.name} - {(schools || []).find((s: any) => s.id === group.schoolId)?.name || 'Unknown School'}
                                   </FormLabel>
                                 </FormItem>
                               );

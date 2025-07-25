@@ -81,6 +81,7 @@ export interface IStorage {
   createTeacherAdmin(data: any): Promise<Teacher>;
   updateTeacherAdmin(id: number, data: Partial<Teacher>): Promise<Teacher>;
   deleteTeacherAdmin(id: number): Promise<void>;
+  assignTeacherToGroups(teacherId: number, groupIds: number[]): Promise<void>;
   getAllReportTemplates(): Promise<ReportTemplate[]>;
   createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate>;
   updateReportTemplate(id: number, data: Partial<ReportTemplate>): Promise<ReportTemplate>;
@@ -346,7 +347,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeachersWithDetails(): Promise<any[]> {
-    // Get teachers with their assignments for all academic years
+    // Get teachers with their assignments and assigned groups
     const teachersWithAssignments = await db
       .select({
         id: teachers.id,
@@ -371,8 +372,18 @@ export class DatabaseStorage implements IStorage {
       .from(teachers)
       .leftJoin(teacherAssignments, eq(teachers.id, teacherAssignments.teacherId))
       .leftJoin(schools, eq(teacherAssignments.schoolId, schools.id));
+
+    // Get groups assigned to each teacher assignment
+    const teacherGroups = await db
+      .select({
+        teacherAssignmentId: studentGroups.teacherAssignmentId,
+        groupId: studentGroups.id,
+        groupName: studentGroups.name,
+      })
+      .from(studentGroups)
+      .where(sql`${studentGroups.teacherAssignmentId} IS NOT NULL`);
     
-    // Group by teacher and merge assignments
+    // Group by teacher and merge assignments with groups
     const teacherMap = new Map();
     
     for (const row of teachersWithAssignments) {
@@ -382,6 +393,13 @@ export class DatabaseStorage implements IStorage {
           r.id === row.id && r.academicYear === '2025/2026'
         );
         const currentAssignment = currentAssignments[0];
+        
+        // Get assigned groups for current assignment
+        const assignedGroups = currentAssignment?.assignmentId 
+          ? teacherGroups
+              .filter(g => g.teacherAssignmentId === currentAssignment.assignmentId)
+              .map(g => g.groupId)
+          : [];
         
         teacherMap.set(row.id, {
           id: row.id,
@@ -396,10 +414,11 @@ export class DatabaseStorage implements IStorage {
           // For backward compatibility, include current assignment data directly on teacher
           subjects: currentAssignment?.subjects || [],
           assignedClasses: currentAssignment?.assignedClasses || [],
+          assignedGroups: assignedGroups, // New field for assigned groups
           schoolId: currentAssignment?.schoolId,
           schoolName: currentAssignment?.schoolName,
           schoolCode: currentAssignment?.schoolCode,
-          academicYear: currentAssignment?.academicYear || '2025/2026', // Add academicYear for filtering
+          academicYear: currentAssignment?.academicYear || '2025/2026',
           assignments: []
         });
       }
@@ -409,12 +428,18 @@ export class DatabaseStorage implements IStorage {
         const teacher = teacherMap.get(row.id);
         const existingAssignment = teacher.assignments.find(a => a.id === row.assignmentId);
         if (!existingAssignment) {
+          // Get assigned groups for this assignment
+          const assignmentGroups = teacherGroups
+            .filter(g => g.teacherAssignmentId === row.assignmentId)
+            .map(g => g.groupId);
+            
           teacher.assignments.push({
             id: row.assignmentId,
             schoolId: row.schoolId,
             academicYear: row.academicYear,
             subjects: row.subjects,
             assignedClasses: row.assignedClasses,
+            assignedGroups: assignmentGroups, // Add groups to assignments too
             isActive: row.assignmentActive,
             schoolName: row.schoolName,
             schoolCode: row.schoolCode,
@@ -442,6 +467,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTeacherAdmin(id: number): Promise<void> {
     await db.delete(teachers).where(eq(teachers.id, id));
+  }
+
+  async assignTeacherToGroups(teacherId: number, groupIds: number[]): Promise<void> {
+    // First, find the current teacher assignment for 2025/2026
+    const [currentAssignment] = await db
+      .select()
+      .from(teacherAssignments)
+      .where(
+        and(
+          eq(teacherAssignments.teacherId, teacherId),
+          eq(teacherAssignments.academicYear, '2025/2026')
+        )
+      );
+
+    // Remove teacher assignment from all current groups
+    await db
+      .update(studentGroups)
+      .set({ teacherAssignmentId: null })
+      .where(
+        currentAssignment ? eq(studentGroups.teacherAssignmentId, currentAssignment.id) : sql`false`
+      );
+
+    // Assign teacher to new groups if assignment exists and groups provided
+    if (currentAssignment && groupIds.length > 0) {
+      await db
+        .update(studentGroups)
+        .set({ teacherAssignmentId: currentAssignment.id })
+        .where(inArray(studentGroups.id, groupIds));
+    }
   }
 
   async getAllReportTemplates(): Promise<ReportTemplate[]> {
