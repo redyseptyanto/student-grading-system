@@ -20,23 +20,33 @@ export async function setupGoogleAuth(app: Express) {
         profileImageUrl: profile.photos?.[0]?.value || '',
       };
 
-      // Upsert user in our database
-      await storage.upsertUser({
-        id: `google_${googleUser.id}`, // Prefix to distinguish from Replit users
-        email: googleUser.email,
-        firstName: googleUser.firstName,
-        lastName: googleUser.lastName,
-        profileImageUrl: googleUser.profileImageUrl,
-      });
+      // Check if user exists by email first
+      let existingUser = await storage.getUserByEmail(googleUser.email);
+      
+      if (existingUser) {
+        // User exists - update their Google info if needed
+        existingUser = await storage.updateUser(existingUser.id, {
+          profileImageUrl: googleUser.profileImageUrl || existingUser.profileImageUrl,
+        });
+      } else {
+        // New user - create with Google prefix
+        existingUser = await storage.upsertUser({
+          id: `google_${googleUser.id}`,
+          email: googleUser.email,
+          firstName: googleUser.firstName,
+          lastName: googleUser.lastName,
+          profileImageUrl: googleUser.profileImageUrl,
+        });
+      }
 
-      // Create session user object
+      // Create session user object using existing user ID
       const sessionUser = {
         claims: {
-          sub: `google_${googleUser.id}`,
-          email: googleUser.email,
-          first_name: googleUser.firstName,
-          last_name: googleUser.lastName,
-          profile_image_url: googleUser.profileImageUrl,
+          sub: existingUser.id, // Use the actual user ID from database
+          email: existingUser.email,
+          first_name: existingUser.firstName,
+          last_name: existingUser.lastName,
+          profile_image_url: existingUser.profileImageUrl,
           iat: Math.floor(Date.now() / 1000),
           exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 1 week
         },
@@ -48,7 +58,7 @@ export async function setupGoogleAuth(app: Express) {
       return done(null, sessionUser);
     } catch (error) {
       console.error("Google OAuth error:", error);
-      return done(error, null);
+      return done(error, false);
     }
   }));
 
