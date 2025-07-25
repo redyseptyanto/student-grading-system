@@ -62,6 +62,7 @@ export interface IStorage {
   // Class operations
   getClass(id: number): Promise<Class | undefined>;
   getClasses(): Promise<Class[]>;
+  getClassesBySchool(schoolId: number): Promise<Class[]>;
   createClass(classData: InsertClass): Promise<Class>;
   updateClass(id: number, data: Partial<Class>): Promise<Class>;
   deleteClass(id: number): Promise<void>;
@@ -307,6 +308,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(classes);
   }
 
+  async getClassesBySchool(schoolId: number): Promise<Class[]> {
+    return await db.select().from(classes).where(eq(classes.schoolId, schoolId));
+  }
+
   async createClass(classData: InsertClass): Promise<Class> {
     const [newClass] = await db.insert(classes).values(classData).returning();
     return newClass;
@@ -534,7 +539,7 @@ export class DatabaseStorage implements IStorage {
         eq(teacherAssignments.schoolId, schoolId),
         eq(teacherAssignments.academicYear, '2025/2026') // Current academic year
       ))
-      .where(teacherAssignments.schoolId);
+      .where(eq(teacherAssignments.schoolId, schoolId));
 
     // Get groups assigned to each teacher assignment
     const teacherGroups = await db

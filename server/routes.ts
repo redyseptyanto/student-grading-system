@@ -163,7 +163,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Class routes
   app.get('/api/classes', isAuthenticated, async (req: any, res) => {
     try {
-      const classes = await storage.getClasses();
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let classes: any[] = [];
+      
+      if (user.roles.includes('superadmin')) {
+        // SuperAdmin can see all classes
+        classes = await storage.getClasses();
+      } else if (user.roles.includes('admin')) {
+        // Admin can only see classes from their effective school
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        if (effectiveSchool) {
+          classes = await storage.getClassesBySchool(effectiveSchool.id);
+        }
+      } else {
+        // Other roles get all classes (for now, can be restricted later)
+        classes = await storage.getClasses();
+      }
+
       res.json(classes);
     } catch (error) {
       console.error("Error fetching classes:", error);
