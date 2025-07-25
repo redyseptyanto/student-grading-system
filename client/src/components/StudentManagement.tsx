@@ -63,12 +63,9 @@ export default function StudentManagement() {
   // Mutations
   const createStudentMutation = useMutation({
     mutationFn: async (data: StudentFormData) => {
-      return apiRequest('/api/admin/students', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...data,
-          classId: parseInt(data.classId),
-        }),
+      return apiRequest('POST', '/api/admin/students', {
+        ...data,
+        classId: parseInt(data.classId),
       });
     },
     onSuccess: () => {
@@ -92,12 +89,9 @@ export default function StudentManagement() {
 
   const updateStudentMutation = useMutation({
     mutationFn: async (data: StudentFormData & { id: number }) => {
-      return apiRequest(`/api/admin/students/${data.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          ...data,
-          classId: parseInt(data.classId),
-        }),
+      return apiRequest('PATCH', `/api/admin/students/${data.id}`, {
+        ...data,
+        classId: parseInt(data.classId),
       });
     },
     onSuccess: () => {
@@ -122,9 +116,7 @@ export default function StudentManagement() {
 
   const deleteStudentMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/admin/students/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/admin/students/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/students'] });
@@ -145,10 +137,7 @@ export default function StudentManagement() {
 
   const toggleStudentStatusMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      return apiRequest(`/api/admin/students/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isActive }),
-      });
+      return apiRequest('PATCH', `/api/admin/students/${id}/status`, { isActive });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/students'] });

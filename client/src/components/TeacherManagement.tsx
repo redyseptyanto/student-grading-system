@@ -70,10 +70,7 @@ export default function TeacherManagement() {
   // Mutations
   const createTeacherMutation = useMutation({
     mutationFn: async (data: TeacherFormData) => {
-      return apiRequest('/api/admin/teachers', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/admin/teachers', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/teachers'] });
@@ -95,10 +92,7 @@ export default function TeacherManagement() {
 
   const updateTeacherMutation = useMutation({
     mutationFn: async (data: TeacherFormData & { id: number }) => {
-      return apiRequest(`/api/admin/teachers/${data.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('PATCH', `/api/admin/teachers/${data.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/teachers'] });
@@ -121,9 +115,7 @@ export default function TeacherManagement() {
 
   const deleteTeacherMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/admin/teachers/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/admin/teachers/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/teachers'] });
