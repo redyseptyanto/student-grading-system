@@ -24,6 +24,7 @@ import { useState } from "react";
 import StudentManagement from "@/components/StudentManagement";
 import TeacherManagement from "@/components/TeacherManagement";
 import ReportManagement from "@/components/ReportManagement";
+import ClassManagement from "@/components/ClassManagement";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -123,18 +124,22 @@ export default function AdminDashboard() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="students" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="students" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Student Management
+            Students
           </TabsTrigger>
           <TabsTrigger value="teachers" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
-            Teacher Management
+            Teachers
+          </TabsTrigger>
+          <TabsTrigger value="classes" className="flex items-center gap-2">
+            <School className="h-4 w-4" />
+            Classes & Groups
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Report Management
+            Reports
           </TabsTrigger>
         </TabsList>
 
@@ -144,6 +149,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="teachers">
           <TeacherManagement />
+        </TabsContent>
+
+        <TabsContent value="classes">
+          <ClassManagement />
         </TabsContent>
 
         <TabsContent value="reports">

@@ -4,6 +4,7 @@ import {
   parents,
   students,
   classes,
+  studentGroups,
   reportTemplates,
   schools,
   type User,
@@ -16,6 +17,8 @@ import {
   type InsertStudent,
   type Class,
   type InsertClass,
+  type StudentGroup,
+  type InsertStudentGroup,
   type ReportTemplate,
   type InsertReportTemplate,
   type School,
@@ -52,6 +55,17 @@ export interface IStorage {
   getClass(id: number): Promise<Class | undefined>;
   getClasses(): Promise<Class[]>;
   createClass(classData: InsertClass): Promise<Class>;
+  updateClass(id: number, data: Partial<Class>): Promise<Class>;
+  deleteClass(id: number): Promise<void>;
+  
+  // Student Group operations
+  getStudentGroup(id: number): Promise<StudentGroup | undefined>;
+  getStudentGroups(): Promise<StudentGroup[]>;
+  getStudentGroupsByClass(classId: number): Promise<StudentGroup[]>;
+  createStudentGroup(groupData: InsertStudentGroup): Promise<StudentGroup>;
+  updateStudentGroup(id: number, data: Partial<StudentGroup>): Promise<StudentGroup>;
+  deleteStudentGroup(id: number): Promise<void>;
+  assignStudentToGroup(studentId: number, groupId: number | null): Promise<Student>;
   
   // Admin operations
   getStudentsWithDetails(): Promise<Student[]>;
@@ -207,6 +221,60 @@ export class DatabaseStorage implements IStorage {
   async createClass(classData: InsertClass): Promise<Class> {
     const [newClass] = await db.insert(classes).values(classData).returning();
     return newClass;
+  }
+
+  async updateClass(id: number, data: Partial<Class>): Promise<Class> {
+    const [updatedClass] = await db
+      .update(classes)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(classes.id, id))
+      .returning();
+    return updatedClass;
+  }
+
+  async deleteClass(id: number): Promise<void> {
+    await db.delete(classes).where(eq(classes.id, id));
+  }
+
+  // Student Group operations
+  async getStudentGroup(id: number): Promise<StudentGroup | undefined> {
+    const [group] = await db.select().from(studentGroups).where(eq(studentGroups.id, id));
+    return group;
+  }
+
+  async getStudentGroups(): Promise<StudentGroup[]> {
+    return await db.select().from(studentGroups);
+  }
+
+  async getStudentGroupsByClass(classId: number): Promise<StudentGroup[]> {
+    return await db.select().from(studentGroups).where(eq(studentGroups.classId, classId));
+  }
+
+  async createStudentGroup(groupData: InsertStudentGroup): Promise<StudentGroup> {
+    const [newGroup] = await db.insert(studentGroups).values(groupData).returning();
+    return newGroup;
+  }
+
+  async updateStudentGroup(id: number, data: Partial<StudentGroup>): Promise<StudentGroup> {
+    const [updatedGroup] = await db
+      .update(studentGroups)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(studentGroups.id, id))
+      .returning();
+    return updatedGroup;
+  }
+
+  async deleteStudentGroup(id: number): Promise<void> {
+    await db.delete(studentGroups).where(eq(studentGroups.id, id));
+  }
+
+  async assignStudentToGroup(studentId: number, groupId: number | null): Promise<Student> {
+    const [updatedStudent] = await db
+      .update(students)
+      .set({ groupId, updatedAt: new Date() })
+      .where(eq(students.id, studentId))
+      .returning();
+    return updatedStudent;
   }
 
   // Admin operations

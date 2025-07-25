@@ -59,7 +59,24 @@ export const classes = pgTable("classes", {
   name: varchar("name").notNull(),
   academicYear: varchar("academic_year").notNull(),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  capacity: integer("capacity").default(25),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Student Groups table - groups within classes
+export const studentGroups = pgTable("student_groups", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  classId: integer("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  teacherId: integer("teacher_id").references(() => teachers.id, { onDelete: "set null" }),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  description: text("description"),
+  maxStudents: integer("max_students").default(10),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Teachers table - with school reference
@@ -86,11 +103,12 @@ export const parents = pgTable("parents", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Students table - with school reference
+// Students table - with school and group reference
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
   fullName: varchar("full_name").notNull(),
   classId: integer("class_id").references(() => classes.id),
+  groupId: integer("group_id").references(() => studentGroups.id, { onDelete: "set null" }),
   parentId: integer("parent_id").references(() => parents.id),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   grades: jsonb("grades").$type<Record<string, number[]>>().default({}),
@@ -135,6 +153,7 @@ export const schoolsRelations = relations(schools, ({ many }) => ({
   parents: many(parents),
   students: many(students),
   classes: many(classes),
+  studentGroups: many(studentGroups),
   reportTemplates: many(reportTemplates),
 }));
 
@@ -181,6 +200,10 @@ export const studentsRelations = relations(students, ({ one }) => ({
     fields: [students.classId],
     references: [classes.id],
   }),
+  group: one(studentGroups, {
+    fields: [students.groupId],
+    references: [studentGroups.id],
+  }),
   parent: one(parents, {
     fields: [students.parentId],
     references: [parents.id],
@@ -193,10 +216,27 @@ export const studentsRelations = relations(students, ({ one }) => ({
 
 export const classesRelations = relations(classes, ({ many, one }) => ({
   students: many(students),
+  groups: many(studentGroups),
   school: one(schools, {
     fields: [classes.schoolId],
     references: [schools.id],
   }),
+}));
+
+export const studentGroupsRelations = relations(studentGroups, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [studentGroups.classId],
+    references: [classes.id],
+  }),
+  teacher: one(teachers, {
+    fields: [studentGroups.teacherId],
+    references: [teachers.id],
+  }),
+  school: one(schools, {
+    fields: [studentGroups.schoolId],
+    references: [schools.id],
+  }),
+  students: many(students),
 }));
 
 export const reportTemplatesRelations = relations(reportTemplates, ({ one }) => ({
@@ -238,6 +278,13 @@ export const insertStudentSchema = createInsertSchema(students).omit({
 export const insertClassSchema = createInsertSchema(classes).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStudentGroupSchema = createInsertSchema(studentGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertReportTemplateSchema = createInsertSchema(reportTemplates).omit({
@@ -273,6 +320,8 @@ export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type Student = typeof students.$inferSelect;
 export type InsertClass = z.infer<typeof insertClassSchema>;
 export type Class = typeof classes.$inferSelect;
+export type InsertStudentGroup = z.infer<typeof insertStudentGroupSchema>;
+export type StudentGroup = typeof studentGroups.$inferSelect;
 export type InsertReportTemplate = z.infer<typeof insertReportTemplateSchema>;
 export type ReportTemplate = typeof reportTemplates.$inferSelect;
 export type GradeInput = z.infer<typeof gradeInputSchema>;

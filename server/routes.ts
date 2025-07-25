@@ -7,8 +7,11 @@ import {
   radarChartConfigSchema, 
   insertStudentSchema,
   insertClassSchema,
+  insertStudentGroupSchema,
   insertTeacherSchema,
   insertParentSchema,
+  insertReportTemplateSchema,
+  insertSchoolSchema,
   users,
   ASSESSMENT_ASPECTS 
 } from "@shared/schema";
@@ -172,6 +175,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid class data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create class" });
+    }
+  });
+
+  app.put('/api/classes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can update classes" });
+      }
+
+      const classId = parseInt(req.params.id);
+      const updateData = req.body;
+      const updatedClass = await storage.updateClass(classId, updateData);
+      
+      res.json(updatedClass);
+    } catch (error) {
+      console.error("Error updating class:", error);
+      res.status(500).json({ message: "Failed to update class" });
+    }
+  });
+
+  app.delete('/api/classes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can delete classes" });
+      }
+
+      const classId = parseInt(req.params.id);
+      await storage.deleteClass(classId);
+      
+      res.json({ message: "Class deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting class:", error);
+      res.status(500).json({ message: "Failed to delete class" });
+    }
+  });
+
+  // Student Group routes
+  app.get('/api/student-groups', isAuthenticated, async (req: any, res) => {
+    try {
+      const classId = req.query.classId;
+      let groups;
+      
+      if (classId) {
+        groups = await storage.getStudentGroupsByClass(parseInt(classId));
+      } else {
+        groups = await storage.getStudentGroups();
+      }
+      
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching student groups:", error);
+      res.status(500).json({ message: "Failed to fetch student groups" });
+    }
+  });
+
+  app.post('/api/student-groups', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can create student groups" });
+      }
+
+      const groupData = insertStudentGroupSchema.parse(req.body);
+      const newGroup = await storage.createStudentGroup(groupData);
+      
+      res.json(newGroup);
+    } catch (error) {
+      console.error("Error creating student group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid group data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create student group" });
+    }
+  });
+
+  app.put('/api/student-groups/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can update student groups" });
+      }
+
+      const groupId = parseInt(req.params.id);
+      const updateData = req.body;
+      const updatedGroup = await storage.updateStudentGroup(groupId, updateData);
+      
+      res.json(updatedGroup);
+    } catch (error) {
+      console.error("Error updating student group:", error);
+      res.status(500).json({ message: "Failed to update student group" });
+    }
+  });
+
+  app.delete('/api/student-groups/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can delete student groups" });
+      }
+
+      const groupId = parseInt(req.params.id);
+      await storage.deleteStudentGroup(groupId);
+      
+      res.json({ message: "Student group deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting student group:", error);
+      res.status(500).json({ message: "Failed to delete student group" });
+    }
+  });
+
+  app.put('/api/students/:id/assign-group', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can assign students to groups" });
+      }
+
+      const studentId = parseInt(req.params.id);
+      const { groupId } = req.body;
+      const updatedStudent = await storage.assignStudentToGroup(studentId, groupId);
+      
+      res.json(updatedStudent);
+    } catch (error) {
+      console.error("Error assigning student to group:", error);
+      res.status(500).json({ message: "Failed to assign student to group" });
     }
   });
 
