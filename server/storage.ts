@@ -345,8 +345,77 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(teachers);
   }
 
-  async getTeachersWithDetails(): Promise<Teacher[]> {
-    return await db.select().from(teachers);
+  async getTeachersWithDetails(): Promise<any[]> {
+    // Get teachers with their current assignments
+    const teachersWithAssignments = await db
+      .select({
+        id: teachers.id,
+        userId: teachers.userId,
+        fullName: teachers.fullName,
+        email: teachers.email,
+        phone: teachers.phone,
+        qualifications: teachers.qualifications,
+        isActive: teachers.isActive,
+        createdAt: teachers.createdAt,
+        updatedAt: teachers.updatedAt,
+        // Assignment data
+        assignmentId: teacherAssignments.id,
+        schoolId: teacherAssignments.schoolId,
+        academicYear: teacherAssignments.academicYear,
+        subjects: teacherAssignments.subjects,
+        assignedClasses: teacherAssignments.assignedClasses,
+        assignmentActive: teacherAssignments.isActive,
+        schoolName: schools.name,
+        schoolCode: schools.schoolCode,
+      })
+      .from(teachers)
+      .leftJoin(teacherAssignments, and(
+        eq(teachers.id, teacherAssignments.teacherId),
+        eq(teacherAssignments.academicYear, '2025/2026')
+      ))
+      .leftJoin(schools, eq(teacherAssignments.schoolId, schools.id));
+    
+    // Group by teacher and merge assignments
+    const teacherMap = new Map();
+    
+    for (const row of teachersWithAssignments) {
+      if (!teacherMap.has(row.id)) {
+        teacherMap.set(row.id, {
+          id: row.id,
+          userId: row.userId,
+          fullName: row.fullName,
+          email: row.email,
+          phone: row.phone,
+          qualifications: row.qualifications,
+          isActive: row.isActive,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          // For backward compatibility, include assignment data directly on teacher
+          subjects: row.subjects || [],
+          assignedClasses: row.assignedClasses || [],
+          schoolId: row.schoolId,
+          schoolName: row.schoolName,
+          schoolCode: row.schoolCode,
+          assignments: []
+        });
+      }
+      
+      // Add assignment if it exists
+      if (row.assignmentId) {
+        teacherMap.get(row.id).assignments.push({
+          id: row.assignmentId,
+          schoolId: row.schoolId,
+          academicYear: row.academicYear,
+          subjects: row.subjects,
+          assignedClasses: row.assignedClasses,
+          isActive: row.assignmentActive,
+          schoolName: row.schoolName,
+          schoolCode: row.schoolCode,
+        });
+      }
+    }
+    
+    return Array.from(teacherMap.values());
   }
 
   async createTeacherAdmin(data: InsertTeacher): Promise<Teacher> {

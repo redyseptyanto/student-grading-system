@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      let students = [];
+      let students: any[] = [];
       
       if (user.roles.includes('admin')) {
         students = await storage.getStudents();
