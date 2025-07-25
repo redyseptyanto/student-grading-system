@@ -40,8 +40,8 @@ const subjectOptions = [
 
 export default function TeacherManagement() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSchool, setSelectedSchool] = useState("");
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
+  const [selectedSchool, setSelectedSchool] = useState("ALL_SCHOOLS");
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState("ALL_YEARS");
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -177,9 +177,9 @@ export default function TeacherManagement() {
     const matchesSearch = teacher.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          teacher.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesSchool = !selectedSchool || teacher.schoolName === selectedSchool;
+    const matchesSchool = !selectedSchool || selectedSchool === "ALL_SCHOOLS" || teacher.schoolName === selectedSchool;
     
-    const matchesAcademicYear = !selectedAcademicYear || teacher.academicYear === selectedAcademicYear;
+    const matchesAcademicYear = !selectedAcademicYear || selectedAcademicYear === "ALL_YEARS" || teacher.academicYear === selectedAcademicYear;
     
     return matchesSearch && matchesSchool && matchesAcademicYear;
   }) || [];
@@ -187,12 +187,12 @@ export default function TeacherManagement() {
   // Clear all filters
   const clearFilters = () => {
     setSearchTerm("");
-    setSelectedSchool("");
-    setSelectedAcademicYear("");
+    setSelectedSchool("ALL_SCHOOLS");
+    setSelectedAcademicYear("ALL_YEARS");
   };
 
   // Check if any filters are active
-  const hasActiveFilters = searchTerm || selectedSchool || selectedAcademicYear;
+  const hasActiveFilters = searchTerm || (selectedSchool && selectedSchool !== "ALL_SCHOOLS") || (selectedAcademicYear && selectedAcademicYear !== "ALL_YEARS");
 
   return (
     <div className="space-y-6">
@@ -246,7 +246,7 @@ export default function TeacherManagement() {
                     <SelectValue placeholder="All Schools" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Schools</SelectItem>
+                    <SelectItem value="ALL_SCHOOLS">All Schools</SelectItem>
                     {schools?.map((school: any) => (
                       <SelectItem key={school.id} value={school.name}>
                         {school.name}
@@ -264,7 +264,7 @@ export default function TeacherManagement() {
                     <SelectValue placeholder="All Years" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Years</SelectItem>
+                    <SelectItem value="ALL_YEARS">All Years</SelectItem>
                     {academicYears.map((year) => (
                       <SelectItem key={year} value={year}>
                         {year}
