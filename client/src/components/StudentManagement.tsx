@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import BulkStudentAddDialog from "./BulkStudentAddDialog";
 import FilterBar from "@/components/ui/FilterBar";
 import PaginatedTable from "@/components/ui/PaginatedTable";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const studentFormSchema = z.object({
   nsp: z.string().optional(),
@@ -421,14 +422,20 @@ export default function StudentManagement() {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteStudentMutation.mutate(student.id)}
-                      className="text-red-600 hover:text-red-700"
+                    <ConfirmDialog
+                      title="Delete Student"
+                      description={`Are you sure you want to delete ${student.fullName}? This action cannot be undone.`}
+                      onConfirm={() => deleteStudentMutation.mutate(student.id)}
+                      disabled={deleteStudentMutation.isPending}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </ConfirmDialog>
                   </div>
                 )
               }

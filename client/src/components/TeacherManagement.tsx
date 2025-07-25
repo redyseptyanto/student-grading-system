@@ -17,6 +17,7 @@ import { Plus, Edit, Trash2, GraduationCap, Users, BookOpen, School, Calendar } 
 import { useToast } from "@/hooks/use-toast";
 import FilterBar from "@/components/ui/FilterBar";
 import PaginatedTable from "@/components/ui/PaginatedTable";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const teacherFormSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
@@ -367,14 +368,20 @@ export default function TeacherManagement() {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteTeacherMutation.mutate(teacher.id)}
-                      className="text-red-600 hover:text-red-700"
+                    <ConfirmDialog
+                      title="Delete Teacher"
+                      description={`Are you sure you want to delete ${teacher.fullName}? This action cannot be undone.`}
+                      onConfirm={() => deleteTeacherMutation.mutate(teacher.id)}
+                      disabled={deleteTeacherMutation.isPending}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </ConfirmDialog>
                   </div>
                 )
               }

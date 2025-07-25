@@ -16,6 +16,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { School, User, Teacher, Student, InsertSchool, UpsertUser } from "@shared/schema";
 import { Trash2, Edit, Plus, Users, GraduationCap, School as SchoolIcon, Settings, Search, Filter, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function SuperAdminDashboard() {
   const { user, isLoading: authLoading } = useAuth();
@@ -577,14 +578,20 @@ export default function SuperAdminDashboard() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteSchoolMutation.mutate(school.id)}
+                            <ConfirmDialog
+                              title="Delete School"
+                              description={`Are you sure you want to delete "${school.name}"? This action cannot be undone and will remove all associated classes, students, and data.`}
+                              onConfirm={() => deleteSchoolMutation.mutate(school.id)}
                               disabled={deleteSchoolMutation.isPending}
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </ConfirmDialog>
                           </div>
                         </TableCell>
                       </TableRow>

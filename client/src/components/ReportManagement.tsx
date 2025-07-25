@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Search, Edit, Trash2, FileText, Eye, Copy, Layout, Image, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const reportTemplateSchema = z.object({
   name: z.string().min(2, "Template name must be at least 2 characters"),
@@ -442,14 +443,20 @@ export default function ReportManagement() {
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteTemplateMutation.mutate(template.id)}
-                      className="text-red-600 hover:text-red-700"
+                    <ConfirmDialog
+                      title="Delete Report Template"
+                      description={`Are you sure you want to delete "${template.name}"? This action cannot be undone.`}
+                      onConfirm={() => deleteTemplateMutation.mutate(template.id)}
+                      disabled={deleteTemplateMutation.isPending}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </ConfirmDialog>
                   </div>
                 </div>
               </CardContent>

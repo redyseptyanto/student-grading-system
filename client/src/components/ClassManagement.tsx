@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import FilterBar from "@/components/ui/FilterBar";
 import PaginatedTable from "@/components/ui/PaginatedTable";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1026,14 +1027,20 @@ export default function ClassManagement() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteClassMutation.mutate(classData.id)}
+                        <ConfirmDialog
+                          title="Delete Class"
+                          description={`Are you sure you want to delete "${classData.name}"? This action cannot be undone and will also delete all associated student groups.`}
+                          onConfirm={() => deleteClassMutation.mutate(classData.id)}
                           disabled={deleteClassMutation.isPending}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </ConfirmDialog>
                       </div>
                     )
                   }
@@ -1243,14 +1250,20 @@ export default function ClassManagement() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteGroupMutation.mutate(group.id)}
+                        <ConfirmDialog
+                          title="Delete Student Group"
+                          description={`Are you sure you want to delete "${group.name}"? This action cannot be undone.`}
+                          onConfirm={() => deleteGroupMutation.mutate(group.id)}
                           disabled={deleteGroupMutation.isPending}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </ConfirmDialog>
                       </div>
                     )
                   }
