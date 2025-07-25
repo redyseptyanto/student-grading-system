@@ -16,6 +16,8 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Filter Interface**: Compact search field (w-64) alongside dropdown filters in single row layout
 - **Universal Filter Standards**: All tabs now include Schools and Years filters consistently across Students, Teachers, Classes, and Groups
 - **Result Count Display**: Added "X of Y items" count with clear filters functionality
+- **Student Management Layout**: Specialized layout with search field on top, filter order (Schools, Classes, Years) with balanced proportional widths
+- **Academic Year Format Consistency**: Standardized all academic year displays to use "/" format (2025/2026) instead of "-" format throughout the system
 
 ### Enhanced Student Management System
 - **Expanded Student Database Schema**: Added comprehensive student fields including NSP, NIS, nickname, gender, school code, absence tracking, and flexible status management

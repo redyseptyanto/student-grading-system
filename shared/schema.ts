@@ -99,7 +99,7 @@ export const teacherAssignments = pgTable("teacher_assignments", {
   id: serial("id").primaryKey(),
   teacherId: integer("teacher_id").notNull().references(() => teachers.id, { onDelete: "cascade" }),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
-  academicYear: varchar("academic_year").notNull(), // 2025/2026 format
+  academicYear: varchar("academic_year").notNull(), // Format: 2024/2025
   subjects: jsonb("subjects").$type<string[]>().default([]),
   assignedClasses: jsonb("assigned_classes").$type<number[]>().default([]),
   isActive: boolean("is_active").default(true),

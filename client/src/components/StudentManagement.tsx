@@ -387,7 +387,7 @@ export default function StudentManagement() {
               { key: "school", label: "School", render: (student) => schools?.find((s: any) => s.id === student.schoolId)?.schoolCode || "-" },
               { key: "class", label: "Class", render: (student) => classes?.find((c: any) => c.id === student.classId)?.name || 'Unassigned' },
               { key: "group", label: "Group", render: (student) => student.groupId ? `Group ${student.groupId}` : "-" },
-              { key: "academicYear", label: "Academic Year", render: (student) => student.academicYear || '2024-2025' },
+              { key: "academicYear", label: "Academic Year", render: (student) => student.academicYear || '2025/2026' },
               { key: "noAbsence", label: "No Absence", render: (student) => student.noAbsence || 0 },
               { 
                 key: "status", 
@@ -603,7 +603,7 @@ export default function StudentManagement() {
                     <FormItem>
                       <FormLabel>Academic Year*</FormLabel>
                       <FormControl>
-                        <Input placeholder="2024-2025" {...field} />
+                        <Input placeholder="2025/2026" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

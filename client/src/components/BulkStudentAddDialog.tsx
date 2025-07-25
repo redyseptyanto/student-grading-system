@@ -215,7 +215,7 @@ export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAdd
                   <FormItem>
                     <FormLabel>Academic Year *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="2024-2025" />
+                      <Input {...field} placeholder="2025/2026" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

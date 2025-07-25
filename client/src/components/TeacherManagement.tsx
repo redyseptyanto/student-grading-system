@@ -502,7 +502,7 @@ export default function TeacherManagement() {
                                     />
                                   </FormControl>
                                   <FormLabel className="text-sm font-normal">
-                                    {cls.name} ({cls.academicYear || '2024-2025'})
+                                    {cls.name} ({cls.academicYear || '2025/2026'})
                                   </FormLabel>
                                 </FormItem>
                               );

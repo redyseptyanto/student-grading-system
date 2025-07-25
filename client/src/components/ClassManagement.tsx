@@ -915,8 +915,8 @@ export default function ClassManagement() {
                         <Input
                           id="academicYear"
                           name="academicYear"
-                          placeholder="e.g., 2024-2025"
-                          defaultValue="2024-2025"
+                          placeholder="e.g., 2025/2026"
+                          defaultValue="2025/2026"
                           required
                         />
                       </div>
@@ -1295,6 +1295,7 @@ export default function ClassManagement() {
                       id="editAcademicYear"
                       name="academicYear"
                       defaultValue={editingClass.academicYear}
+                      placeholder="e.g., 2025/2026"
                       required
                     />
                   </div>
