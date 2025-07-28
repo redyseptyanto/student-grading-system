@@ -774,12 +774,12 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async removeTeacherFromGroup(teacherUserId: string, groupId: number): Promise<void> {
+  async removeTeacherFromGroup(groupId: number, academicYear: string): Promise<void> {
     await db
       .delete(groupTeacherAssignments)
       .where(and(
-        eq(groupTeacherAssignments.teacherUserId, teacherUserId),
-        eq(groupTeacherAssignments.groupId, groupId)
+        eq(groupTeacherAssignments.groupId, groupId),
+        eq(groupTeacherAssignments.academicYear, academicYear)
       ));
   }
 
