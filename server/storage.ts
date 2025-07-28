@@ -337,6 +337,7 @@ export class DatabaseStorage implements IStorage {
 
   async getTeacherAssignedSchools(userId: string): Promise<School[]> {
     // Get schools where the teacher is assigned
+    console.log('getTeacherAssignedSchools called for userId:', userId);
     const schoolsData = await db
       .select({
         id: schools.id,
@@ -364,6 +365,7 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(schools.name);
 
+    console.log('getTeacherAssignedSchools result for userId', userId, ':', schoolsData);
     return schoolsData;
   }
 
