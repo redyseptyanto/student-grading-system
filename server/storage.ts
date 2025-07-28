@@ -681,6 +681,27 @@ export class DatabaseStorage implements IStorage {
     console.log('getStudentsByTeacherGroups called with:', { teacherUserId, classId, academicYear, schoolId });
     console.log('Query conditions: teacher=', teacherUserId, 'class=', classId, 'school=', schoolId, 'year=', academicYear);
     
+    // First check if teacher has any group assignments
+    const teacherGroups = await db
+      .select({
+        groupId: groupTeacherAssignments.groupId,
+        classId: groupTeacherAssignments.classId,
+        schoolId: groupTeacherAssignments.schoolId,
+        academicYear: groupTeacherAssignments.academicYear
+      })
+      .from(groupTeacherAssignments)
+      .where(and(
+        eq(groupTeacherAssignments.teacherUserId, teacherUserId),
+        eq(groupTeacherAssignments.academicYear, academicYear)
+      ));
+    
+    console.log('Teacher groups found:', teacherGroups);
+    
+    if (teacherGroups.length === 0) {
+      console.log('No group assignments found for teacher');
+      return [];
+    }
+    
     const result = await db
       .select({
         // Student profile data
@@ -735,6 +756,9 @@ export class DatabaseStorage implements IStorage {
         eq(groupTeacherAssignments.academicYear, academicYear)
       ))
       .orderBy(students.fullName);
+    
+    console.log('getStudentsByTeacherGroups result:', result.length, 'students found');
+    console.log('Students:', result.map(s => ({ id: s.id, name: s.fullName, class: s.className, group: s.groupName })));
     
     return result;
   }
