@@ -223,6 +223,7 @@ export class DatabaseStorage implements IStorage {
         roles: users.roles,
         isActive: users.isActive,
         schoolId: users.schoolId,
+        permissions: users.permissions,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt
       })
@@ -237,6 +238,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
     
+    console.log('getTeachersBySchool result for school', schoolId, ':', teacherUsers);
     return teacherUsers;
   }
 
