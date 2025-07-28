@@ -542,7 +542,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
       .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
       .where(
-        sql`${users.roles} ? 'teacher' OR ${userSchoolAssignments.rolesAtSchool} ? 'teacher'`
+        sql`'teacher' = ANY(${users.roles}) OR ${userSchoolAssignments.rolesAtSchool} ? 'teacher'`
       );
 
     // Get groups assigned to each teacher

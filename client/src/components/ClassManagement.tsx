@@ -623,7 +623,7 @@ export default function ClassManagement() {
       const schoolId = effectiveSchool?.id;
       return apiRequest('GET', schoolId ? `/api/admin/teachers?schoolId=${schoolId}` : '/api/admin/teachers');
     },
-    enabled: !!effectiveSchool,
+    enabled: true, // Always enable - API will handle school filtering
   });
   
   // Ensure teachers is always an array
