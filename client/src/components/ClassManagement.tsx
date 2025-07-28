@@ -207,8 +207,8 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   };
 
   const getTeacherName = (teacherId?: number) => {
-    const teacher = teachers.find((t: Teacher) => t.id === teacherId);
-    return teacher ? teacher.fullName : 'Unassigned';
+    const teacher = teachers.find((t: Teacher) => t.id == teacherId);
+    return teacher ? (teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email) : 'Unassigned';
   };
 
   const getGroupName = (groupId?: number) => {
@@ -575,8 +575,10 @@ interface StudentGroup {
 }
 
 interface Teacher {
-  id: number;
-  fullName: string;
+  id: number | string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
 }
 
@@ -815,8 +817,8 @@ export default function ClassManagement() {
   };
 
   const getTeacherName = (teacherId?: number) => {
-    const teacher = teachers.find((t: Teacher) => t.id === teacherId);
-    return teacher ? teacher.fullName : 'Unassigned';
+    const teacher = teachers.find((t: Teacher) => t.id == teacherId);
+    return teacher ? (teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email) : 'Unassigned';
   };
 
   const getClassName = (classId: number) => {
@@ -1138,7 +1140,7 @@ export default function ClassManagement() {
                               <SelectItem value="">No teacher assigned</SelectItem>
                               {teachers.map((teacher: Teacher) => (
                                 <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                                  {teacher.fullName}
+                                  {teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email}
                                 </SelectItem>
                               ))}
                             </SelectContent>
