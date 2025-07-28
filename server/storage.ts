@@ -335,6 +335,87 @@ export class DatabaseStorage implements IStorage {
       );
   }
 
+  async getTeacherAssignedSchools(userId: string): Promise<School[]> {
+    // Get schools where the teacher is assigned
+    const schoolsData = await db
+      .select({
+        id: schools.id,
+        name: schools.name,
+        address: schools.address,
+        email: schools.email,
+        schoolCode: schools.schoolCode,
+        program: schools.program,
+        phone: schools.phone,
+        principalName: schools.principalName,
+        establishedYear: schools.establishedYear,
+        isActive: schools.isActive,
+        createdAt: schools.createdAt,
+        updatedAt: schools.updatedAt,
+      })
+      .from(schools)
+      .innerJoin(userSchoolAssignments, eq(schools.id, userSchoolAssignments.schoolId))
+      .where(
+        and(
+          eq(userSchoolAssignments.userId, userId),
+          sql`${userSchoolAssignments.rolesAtSchool} ? 'teacher'`,
+          eq(userSchoolAssignments.isActive, true),
+          eq(schools.isActive, true)
+        )
+      )
+      .orderBy(schools.name);
+
+    return schoolsData;
+  }
+
+  async getTeacherAssignedClasses(userId: string, academicYear: string): Promise<Class[]> {
+    // Get classes that the teacher is assigned to
+    const assignments = await db
+      .select({ 
+        assignedClasses: userSchoolAssignments.assignedClasses,
+        schoolId: userSchoolAssignments.schoolId 
+      })
+      .from(userSchoolAssignments)
+      .where(
+        and(
+          eq(userSchoolAssignments.userId, userId),
+          eq(userSchoolAssignments.academicYear, academicYear),
+          sql`${userSchoolAssignments.rolesAtSchool} ? 'teacher'`,
+          eq(userSchoolAssignments.isActive, true)
+        )
+      );
+
+    if (assignments.length === 0) {
+      return [];
+    }
+
+    // Collect all assigned class IDs from all assignments
+    const allClassIds: number[] = [];
+    for (const assignment of assignments) {
+      if (assignment.assignedClasses && Array.isArray(assignment.assignedClasses)) {
+        allClassIds.push(...assignment.assignedClasses);
+      }
+    }
+
+    if (allClassIds.length === 0) {
+      return [];
+    }
+
+    // Get the actual class data
+    const classesData = await db
+      .select()
+      .from(classes)
+      .where(
+        and(
+          inArray(classes.id, allClassIds),
+          eq(classes.academicYear, academicYear),
+          eq(classes.isActive, true)
+        )
+      )
+      .orderBy(classes.name);
+
+    return classesData;
+  }
+
   // Parent operations
   async getParent(userId: string): Promise<Parent | undefined> {
     const [parent] = await db.select().from(parents).where(eq(parents.userId, userId));

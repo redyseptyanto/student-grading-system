@@ -344,6 +344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           classes = []; // No effective school found
         }
+      } else if (user.roles.includes('teacher')) {
+        // Teachers can only see classes they're assigned to
+        classes = await storage.getTeacherAssignedClasses(userId, '2025/2026');
       } else {
         // Other roles get limited access based on their assignments
         const effectiveSchool = await storage.getUserEffectiveSchool(userId);
@@ -464,7 +467,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Schools routes
   app.get('/api/schools', isAuthenticated, async (req: any, res) => {
     try {
-      const schools = await storage.getSchools();
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let schools;
+      
+      if (user.roles.includes('superadmin')) {
+        // SuperAdmin can see all schools
+        schools = await storage.getSchools();
+      } else if (user.roles.includes('admin')) {
+        // Regular admin can see schools they're assigned to
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        schools = effectiveSchool ? [effectiveSchool] : [];
+      } else if (user.roles.includes('teacher')) {
+        // Teachers can only see their assigned schools
+        schools = await storage.getTeacherAssignedSchools(userId);
+      } else {
+        schools = [];
+      }
+      
       res.json(schools);
     } catch (error) {
       console.error("Error fetching schools:", error);
