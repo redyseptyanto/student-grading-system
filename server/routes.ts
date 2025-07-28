@@ -431,13 +431,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Student Group routes
   app.get('/api/student-groups', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       const classId = req.query.classId;
+      const withTeachers = req.query.withTeachers === 'true';
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
       let groups;
       
-      if (classId) {
-        groups = await storage.getStudentGroupsByClass(parseInt(classId));
+      if (withTeachers) {
+        // Get groups with teacher assignments, filtered by user's effective school
+        let schoolId, academicYear = '2025/2026';
+        
+        if (!user.roles.includes('superadmin')) {
+          const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+          if (effectiveSchool) {
+            schoolId = effectiveSchool.id;
+          }
+        }
+        
+        groups = await storage.getStudentGroupsWithTeachers(schoolId, academicYear);
+        
+        // Filter by classId if provided
+        if (classId) {
+          groups = groups.filter(g => g.classId === parseInt(classId));
+        }
       } else {
-        groups = await storage.getStudentGroups();
+        // Original behavior for backward compatibility
+        if (classId) {
+          groups = await storage.getStudentGroupsByClass(parseInt(classId));
+        } else {
+          groups = await storage.getStudentGroups();
+        }
       }
       
       res.json(groups);
@@ -470,7 +498,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const groupData = insertStudentGroupSchema.parse({
         ...req.body,
-        schoolId: effectiveSchoolId
+        schoolId: effectiveSchoolId,
+        academicYear: req.body.academicYear || '2025/2026'
       });
       
       const newGroup = await storage.createStudentGroup(groupData);
@@ -542,6 +571,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting student group:", error);
       res.status(500).json({ message: "Failed to delete student group" });
+    }
+  });
+
+  // Group Teacher Assignment routes
+  app.post('/api/group-teacher-assignments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can assign teachers to groups" });
+      }
+
+      const { teacherUserId, groupIds, academicYear = '2025/2026' } = req.body;
+      
+      // Get user's effective school ID for security
+      let effectiveSchoolId;
+      
+      if (!user.roles.includes('superadmin')) {
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        if (!effectiveSchool) {
+          return res.status(403).json({ message: "No school assignment found" });
+        }
+        effectiveSchoolId = effectiveSchool.id;
+      } else {
+        // For superadmin, get school from the first group
+        if (groupIds.length > 0) {
+          const group = await storage.getStudentGroup(groupIds[0]);
+          effectiveSchoolId = group?.schoolId;
+        }
+      }
+
+      if (!effectiveSchoolId) {
+        return res.status(400).json({ message: "School ID could not be determined" });
+      }
+
+      await storage.assignTeacherToGroups(teacherUserId, groupIds, effectiveSchoolId, academicYear);
+      
+      res.json({ message: "Teacher assigned to groups successfully" });
+    } catch (error) {
+      console.error("Error assigning teacher to groups:", error);
+      res.status(500).json({ message: "Failed to assign teacher to groups" });
+    }
+  });
+
+  app.delete('/api/group-teacher-assignments/:teacherUserId/:groupId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('admin')) {
+        return res.status(403).json({ message: "Only admins can remove teacher assignments" });
+      }
+
+      const { teacherUserId, groupId } = req.params;
+      await storage.removeTeacherFromGroup(teacherUserId, parseInt(groupId));
+      
+      res.json({ message: "Teacher removed from group successfully" });
+    } catch (error) {
+      console.error("Error removing teacher from group:", error);
+      res.status(500).json({ message: "Failed to remove teacher from group" });
     }
   });
 

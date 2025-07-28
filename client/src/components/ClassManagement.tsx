@@ -82,16 +82,17 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
     firstTeacher: teachers?.[0]
   });
 
-  // Get all groups and filter by class on frontend for now
-  const { data: allGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
-    queryKey: ['/api/student-groups'],
+  // Get groups with teacher information for this specific class
+  const { data: classGroups = [], isLoading: groupsLoading } = useQuery<(StudentGroup & { teachers?: Teacher[] })[]>({
+    queryKey: ['/api/student-groups', `?classId=${classId}&withTeachers=true`],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/student-groups?classId=${classId}&withTeachers=true`);
+      return await response.json();
+    },
   });
   
-  // Filter groups for this specific class
-  const classGroups = allGroups?.filter(group => group.classId === classId) || [];
-  
   // Debug log
-  console.log('All groups:', allGroups, 'Class groups for', classId, ':', classGroups, 'Loading:', groupsLoading);
+  console.log('Class groups for', classId, ':', classGroups, 'Loading:', groupsLoading);
 
   // Get students in this class  
   const { data: classStudents, isLoading: studentsLoading } = useQuery<Student[]>({
@@ -415,7 +416,15 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                           </Badge>
                         </div>
                         <div className="text-sm text-gray-600 mt-1">
-                          <span>Teacher: {getTeacherName(group.teacherId)}</span>
+                          <span>Teachers: {
+                            group.teachers && group.teachers.length > 0 ? (
+                              group.teachers.map((teacher, index) => (
+                                `${teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email}${index < group.teachers!.length - 1 ? ', ' : ''}`
+                              )).join('')
+                            ) : (
+                              'No teachers assigned'
+                            )
+                          }</span>
                           {group.description && (
                             <>
                               <span className="mx-2">•</span>
@@ -485,9 +494,13 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="no-group">Remove from groups</SelectItem>
-                      {Array.isArray(classGroups) && classGroups.filter(g => g.isActive).map((group: StudentGroup) => (
+                      {Array.isArray(classGroups) && classGroups.filter(g => g.isActive).map((group: StudentGroup & { teachers?: Teacher[] }) => (
                         <SelectItem key={group.id} value={group.id.toString()}>
-                          {group.name} ({getTeacherName(group.teacherId)})
+                          {group.name} ({
+                            group.teachers && group.teachers.length > 0 
+                              ? group.teachers.map(t => t.fullName || `${t.firstName || ''} ${t.lastName || ''}`.trim() || t.email).join(', ')
+                              : 'No teachers'
+                          })
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -626,13 +639,14 @@ interface StudentGroup {
   id: number;
   name: string;
   classId: number;
-  teacherId?: number;
   schoolId: number;
+  academicYear: string;
   description?: string;
   maxStudents: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  teachers?: Teacher[];
 }
 
 interface Teacher {
@@ -728,10 +742,17 @@ export default function ClassManagement() {
   const schools = effectiveSchool ? [effectiveSchool] : [];
   const schoolsLoading = false;
 
-  const { data: studentGroups = [], isLoading: groupsLoading } = useQuery<StudentGroup[]>({
+  const { data: studentGroups = [], isLoading: groupsLoading } = useQuery<(StudentGroup & { teachers?: Teacher[] })[]>({
     queryKey: selectedClassId 
-      ? ['/api/student-groups', `?classId=${selectedClassId}`]
-      : ['/api/student-groups'],
+      ? ['/api/student-groups', `?classId=${selectedClassId}&withTeachers=true`]
+      : ['/api/student-groups', '?withTeachers=true'],
+    queryFn: async () => {
+      const queryParam = selectedClassId 
+        ? `?classId=${selectedClassId}&withTeachers=true`
+        : '?withTeachers=true';
+      const response = await apiRequest('GET', `/api/student-groups${queryParam}`);
+      return await response.json();
+    },
   });
 
   // Class mutations

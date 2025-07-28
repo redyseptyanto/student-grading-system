@@ -92,14 +92,29 @@ export const studentGroups = pgTable("student_groups", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
   classId: integer("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
-  teacherUserId: varchar("teacher_user_id").references(() => users.id, { onDelete: "set null" }), // Direct reference to users table
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  academicYear: varchar("academic_year").notNull().default("2025/2026"),
   description: text("description"),
   maxStudents: integer("max_students").default(10),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Group Teacher Assignments table - many-to-many relationship between groups and teachers
+export const groupTeacherAssignments = pgTable("group_teacher_assignments", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull().references(() => studentGroups.id, { onDelete: "cascade" }),
+  teacherUserId: varchar("teacher_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  academicYear: varchar("academic_year").notNull().default("2025/2026"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // Ensure unique group-teacher-year combination
+  index("unique_group_teacher_year").on(table.groupId, table.teacherUserId, table.academicYear),
+]);
 
 // Removed teachers and teacherAssignments tables - data migrated to users and userSchoolAssignments
 
@@ -209,7 +224,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [parents.userId],
   }),
-  teachingGroups: many(studentGroups),
+  groupAssignments: many(groupTeacherAssignments),
 }));
 
 export const userSchoolAssignmentsRelations = relations(userSchoolAssignments, ({ one }) => ({
@@ -282,15 +297,27 @@ export const studentGroupsRelations = relations(studentGroups, ({ one, many }) =
     fields: [studentGroups.classId],
     references: [classes.id],
   }),
-  teacher: one(users, {
-    fields: [studentGroups.teacherUserId],
-    references: [users.id],
-  }),
   school: one(schools, {
     fields: [studentGroups.schoolId],
     references: [schools.id],
   }),
   students: many(students),
+  teacherAssignments: many(groupTeacherAssignments),
+}));
+
+export const groupTeacherAssignmentsRelations = relations(groupTeacherAssignments, ({ one }) => ({
+  group: one(studentGroups, {
+    fields: [groupTeacherAssignments.groupId],
+    references: [studentGroups.id],
+  }),
+  teacher: one(users, {
+    fields: [groupTeacherAssignments.teacherUserId],
+    references: [users.id],
+  }),
+  school: one(schools, {
+    fields: [groupTeacherAssignments.schoolId],
+    references: [schools.id],
+  }),
 }));
 
 // Removed teachersRelations and teacherAssignmentsRelations - tables no longer exist
@@ -349,6 +376,12 @@ export const insertUserSchoolAssignmentSchema = createInsertSchema(userSchoolAss
   updatedAt: true,
 });
 
+export const insertGroupTeacherAssignmentSchema = createInsertSchema(groupTeacherAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Grade input schema
 export const gradeInputSchema = z.object({
   studentId: z.number(),
@@ -383,6 +416,9 @@ export type ReportTemplate = typeof reportTemplates.$inferSelect;
 // Removed TeacherAssignment types - table no longer exists
 export type InsertUserSchoolAssignment = z.infer<typeof insertUserSchoolAssignmentSchema>;
 export type UserSchoolAssignment = typeof userSchoolAssignments.$inferSelect;
+
+export type InsertGroupTeacherAssignment = z.infer<typeof insertGroupTeacherAssignmentSchema>;
+export type GroupTeacherAssignment = typeof groupTeacherAssignments.$inferSelect;
 export type GradeInput = z.infer<typeof gradeInputSchema>;
 export type RadarChartConfig = z.infer<typeof radarChartConfigSchema>;
 export type StudentNarration = typeof studentNarrations.$inferSelect;
