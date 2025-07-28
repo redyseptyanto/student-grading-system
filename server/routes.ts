@@ -247,8 +247,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!hasAccessToSchool) {
             return res.status(403).json({ message: "Access denied to this school" });
           }
+          
+          // For teachers, filter by group assignments instead of all class students
+          const students = await storage.getStudentsByTeacherGroups(
+            userId,
+            parseInt(classId), 
+            academicYear, 
+            parseInt(schoolId)
+          );
+          
+          console.log(`Found ${students.length} students for teacher ${userId} in class ${classId} at school ${schoolId}`);
+          return res.json(students);
         }
         
+        // For non-teachers (admin/superadmin), show all students in class
         const students = await storage.getStudentsByClassWithDetails(
           parseInt(classId), 
           academicYear, 

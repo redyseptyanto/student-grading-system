@@ -577,6 +577,63 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getStudentsByTeacherGroups(teacherUserId: string, classId: number, academicYear: string, schoolId: number): Promise<any[]> {
+    // Get students based on group assignments for the specific teacher
+    const result = await db
+      .select({
+        // Student profile data
+        id: students.id,
+        nsp: students.nsp,
+        nis: students.nis,
+        fullName: students.fullName,
+        nickname: students.nickname,
+        gender: students.gender,
+        dateOfBirth: students.dateOfBirth,
+        parentContact: students.parentContact,
+        address: students.address,
+        parentId: students.parentId,
+        schoolId: students.schoolId,
+        isActive: students.isActive,
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+        
+        // Enrollment data for this academic year
+        enrollmentId: studentEnrollments.id,
+        academicYear: studentEnrollments.academicYear,
+        classId: studentEnrollments.classId,
+        groupId: studentEnrollments.groupId,
+        schoolCode: studentEnrollments.schoolCode,
+        status: studentEnrollments.status,
+        noAbsence: studentEnrollments.noAbsence,
+        sakit: studentEnrollments.sakit,
+        izin: studentEnrollments.izin,
+        alpa: studentEnrollments.alpa,
+        tinggiBadan: studentEnrollments.tinggiBadan,
+        beratBadan: studentEnrollments.beratBadan,
+        
+        // Class and group names
+        className: classes.name,
+        groupName: studentGroups.name,
+      })
+      .from(students)
+      .innerJoin(studentEnrollments, eq(students.id, studentEnrollments.studentId))
+      .leftJoin(classes, eq(studentEnrollments.classId, classes.id))
+      .leftJoin(studentGroups, eq(studentEnrollments.groupId, studentGroups.id))
+      .innerJoin(groupTeacherAssignments, eq(studentEnrollments.groupId, groupTeacherAssignments.groupId))
+      .where(and(
+        eq(groupTeacherAssignments.teacherUserId, teacherUserId),
+        eq(studentEnrollments.classId, classId),
+        eq(studentEnrollments.academicYear, academicYear),
+        eq(studentEnrollments.schoolId, schoolId),
+        eq(students.isActive, true),
+        eq(studentEnrollments.isActive, true),
+        eq(groupTeacherAssignments.academicYear, academicYear)
+      ))
+      .orderBy(students.fullName);
+    
+    return result;
+  }
+
   async createStudent(student: InsertStudent): Promise<Student> {
     const [newStudent] = await db.insert(students).values(student).returning();
     return newStudent;
