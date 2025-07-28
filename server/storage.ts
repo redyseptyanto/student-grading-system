@@ -231,7 +231,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(userSchoolAssignments.schoolId, schoolId),
-          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
+          sql`${userSchoolAssignments.rolesAtSchool} ? 'teacher'`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -261,7 +261,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(userSchoolAssignments.schoolId, schoolId),
           eq(userSchoolAssignments.academicYear, academicYear),  
-          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
+          sql`${userSchoolAssignments.rolesAtSchool} ? 'teacher'`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -290,8 +290,8 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
       .where(
         and(
-          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
-          sql`CAST(${userSchoolAssignments.assignedClasses} AS jsonb) @> ${JSON.stringify([classId])}`,
+          sql`${userSchoolAssignments.rolesAtSchool} ? 'teacher'`,
+          sql`${userSchoolAssignments.assignedClasses} @> ${JSON.stringify([classId])}`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -335,7 +335,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(userSchoolAssignments.userId, teacherUserId),
-          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
+          sql`${userSchoolAssignments.rolesAtSchool} ? 'teacher'`,
           eq(userSchoolAssignments.isActive, true)
         )
       );
@@ -542,7 +542,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
       .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
       .where(
-        sql`'teacher' = ANY(CAST(${users.roles} AS text[])) OR 'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`
+        sql`${users.roles} ? 'teacher' OR ${userSchoolAssignments.rolesAtSchool} ? 'teacher'`
       );
 
     // Get groups assigned to each teacher
