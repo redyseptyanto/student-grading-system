@@ -579,6 +579,8 @@ export class DatabaseStorage implements IStorage {
 
   async getStudentsByTeacherGroups(teacherUserId: string, classId: number, academicYear: string, schoolId: number): Promise<any[]> {
     // Get students based on group assignments for the specific teacher
+    console.log('getStudentsByTeacherGroups called with:', { teacherUserId, classId, academicYear, schoolId });
+    
     const result = await db
       .select({
         // Student profile data
