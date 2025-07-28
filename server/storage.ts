@@ -361,7 +361,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStudentsByClass(classId: number): Promise<Student[]> {
-    return await db.select().from(students).where(eq(students.classId, classId));
+    // Get students through enrollments
+    const result = await db
+      .select({
+        id: students.id,
+        nsp: students.nsp,
+        nis: students.nis,
+        fullName: students.fullName,
+        nickname: students.nickname,
+        gender: students.gender,
+        dateOfBirth: students.dateOfBirth,
+        parentContact: students.parentContact,
+        address: students.address,
+        schoolId: students.schoolId,
+        parentId: students.parentId,
+        isActive: students.isActive,
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+      })
+      .from(students)
+      .innerJoin(studentEnrollments, eq(students.id, studentEnrollments.studentId))
+      .where(and(
+        eq(studentEnrollments.classId, classId),
+        eq(students.isActive, true),
+        eq(studentEnrollments.isActive, true)
+      ));
+    
+    return result;
   }
 
   async getStudentsByParent(parentId: number): Promise<Student[]> {
@@ -385,10 +411,34 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
 
-    return await db
-      .select()
+    const result = await db
+      .select({
+        id: students.id,
+        nsp: students.nsp,
+        nis: students.nis,
+        fullName: students.fullName,
+        nickname: students.nickname,
+        gender: students.gender,
+        dateOfBirth: students.dateOfBirth,
+        parentContact: students.parentContact,
+        address: students.address,
+        schoolId: students.schoolId,
+        parentId: students.parentId,
+        isActive: students.isActive,
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+      })
       .from(students)
-      .where(inArray(students.classId, assignments[0].assignedClasses));
+      .innerJoin(studentEnrollments, eq(students.id, studentEnrollments.studentId))
+      .where(
+        and(
+          inArray(studentEnrollments.classId, assignments[0].assignedClasses),
+          eq(students.isActive, true),
+          eq(studentEnrollments.isActive, true)
+        )
+      );
+    
+    return result;
   }
 
   async getStudentsByClassWithDetails(classId: number, academicYear: string, schoolId: number): Promise<any[]> {
