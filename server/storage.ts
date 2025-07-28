@@ -385,6 +385,52 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(students.classId, assignments[0].assignedClasses));
   }
 
+  async getStudentsByClassWithDetails(classId: number, academicYear: string, schoolId: number): Promise<any[]> {
+    const result = await db
+      .select({
+        id: students.id,
+        nsp: students.nsp,
+        nis: students.nis,
+        noAbsence: students.noAbsence,
+        fullName: students.fullName,
+        nickname: students.nickname,
+        gender: students.gender,
+        schoolCode: students.schoolCode,
+        academicYear: students.academicYear,
+        classId: students.classId,
+        groupId: students.groupId,
+        status: students.status,
+        sakit: students.sakit,
+        izin: students.izin,
+        alpa: students.alpa,
+        tinggiBadan: students.tinggiBadan,
+        beratBadan: students.beratBadan,
+        parentId: students.parentId,
+        schoolId: students.schoolId,
+        grades: students.grades,
+        dateOfBirth: students.dateOfBirth,
+        parentContact: students.parentContact,
+        address: students.address,
+        isActive: students.isActive,
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+        className: classes.name,
+        groupName: studentGroups.name,
+      })
+      .from(students)
+      .leftJoin(classes, eq(students.classId, classes.id))
+      .leftJoin(studentGroups, eq(students.groupId, studentGroups.id))
+      .where(and(
+        eq(students.classId, classId),
+        eq(students.academicYear, academicYear),
+        eq(students.schoolId, schoolId),
+        eq(students.isActive, true)
+      ))
+      .orderBy(students.fullName);
+    
+    return result;
+  }
+
   async createStudent(student: InsertStudent): Promise<Student> {
     const [newStudent] = await db.insert(students).values(student).returning();
     return newStudent;

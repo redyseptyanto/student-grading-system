@@ -215,6 +215,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Check if this is a Grade Input system request with specific filters
+      const { '0': academicYear, '1': classId, '2': schoolId } = req.query;
+      
+      if (academicYear && classId && schoolId) {
+        // This is a Grade Input system request - get students by class with class and group names
+        console.log('Grade Input request - filtering by:', { academicYear, classId, schoolId });
+        
+        // Verify teacher has access to this class/school
+        if (user.roles.includes('teacher')) {
+          const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+          if (effectiveSchool && effectiveSchool.id.toString() !== schoolId) {
+            return res.status(403).json({ message: "Access denied to this school" });
+          }
+        }
+        
+        const students = await storage.getStudentsByClassWithDetails(
+          parseInt(classId), 
+          academicYear, 
+          parseInt(schoolId)
+        );
+        
+        console.log(`Found ${students.length} students for class ${classId} in ${academicYear}`);
+        return res.json(students);
+      }
+
+      // Default behavior for other requests
       let students: any[] = [];
       
       if (user.roles.includes('admin')) {
