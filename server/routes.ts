@@ -223,8 +223,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Grade Input system route with path parameters
-  app.get('/api/students/:academicYear/:classId/:schoolId', isAuthenticated, async (req: any, res) => {
+  // Grade Input system route with query parameters (avoiding URL encoding issues)
+  app.get('/api/students/grade-input', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -233,9 +233,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const { academicYear, classId, schoolId } = req.params;
+      const { academicYear, classId, schoolId } = req.query;
       
       console.log('Grade Input request - filtering by:', { academicYear, classId, schoolId });
+      
+      if (!academicYear || !classId || !schoolId) {
+        return res.status(400).json({ message: "Missing required parameters: academicYear, classId, schoolId" });
+      }
       
       // SIMPLIFIED: Just show all students in the class like Admin Dashboard
       const students = await storage.getStudentsByClassWithDetails(
