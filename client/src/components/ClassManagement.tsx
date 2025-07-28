@@ -820,7 +820,7 @@ export default function ClassManagement() {
   };
 
   const getClassName = (classId: number) => {
-    const classData = classes.find((c: Class) => c.id === classId);
+    const classData = (classes || []).find((c: Class) => c.id === classId);
     return classData ? classData.name : 'Unknown Class';
   };
 
@@ -834,11 +834,11 @@ export default function ClassManagement() {
     return school ? school.name : (effectiveSchool?.name || 'School');
   };
 
-  // Get unique academic years from classes
-  const academicYears = Array.from(new Set(classes.map((c: Class) => c.academicYear)));
+  // Get unique academic years from classes (ensure classes is an array)
+  const academicYears = Array.from(new Set((classes || []).map((c: Class) => c.academicYear)));
 
-  // Filter functions
-  const filteredClasses = classes.filter((classData: Class) => {
+  // Filter functions (ensure classes is an array)
+  const filteredClasses = (classes || []).filter((classData: Class) => {
     const matchesSearch = classData.name.toLowerCase().includes(classSearchTerm.toLowerCase());
     const matchesAcademicYear = classAcademicYearFilter === "ALL_YEARS" || classData.academicYear === classAcademicYearFilter;
     const matchesSchool = classSchoolFilter === "ALL_SCHOOLS" || classData.schoolId.toString() === classSchoolFilter;
@@ -1082,7 +1082,7 @@ export default function ClassManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Classes</SelectItem>
-                      {classes.map((classData: Class) => (
+                      {(classes || []).map((classData: Class) => (
                         <SelectItem key={classData.id} value={classData.id.toString()}>
                           {classData.name}
                         </SelectItem>
@@ -1120,7 +1120,7 @@ export default function ClassManagement() {
                               <SelectValue placeholder="Select a class" />
                             </SelectTrigger>
                             <SelectContent>
-                              {classes.map((classData: Class) => (
+                              {(classes || []).map((classData: Class) => (
                                 <SelectItem key={classData.id} value={classData.id.toString()}>
                                   {classData.name}
                                 </SelectItem>
@@ -1202,7 +1202,7 @@ export default function ClassManagement() {
                     onChange: setGroupClassFilter,
                     options: [
                       { value: "ALL_CLASSES", label: "All Classes" },
-                      ...(classes.map((classData: Class) => ({
+                      ...((classes || []).map((classData: Class) => ({
                         value: classData.id.toString(),
                         label: classData.name
                       })))
