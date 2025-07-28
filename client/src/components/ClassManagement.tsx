@@ -76,6 +76,8 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
 
   // Debug log teachers data
   console.log('ClassGroupManager received teachers:', teachers, 'type:', typeof teachers, 'isArray:', Array.isArray(teachers));
+  console.log('Teachers array length:', teachers.length);
+  teachers.forEach((t, i) => console.log(`Teacher ${i}:`, t.id, t.fullName));
 
   // Get all groups and filter by class on frontend for now
   const { data: allGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
@@ -1347,6 +1349,8 @@ export default function ClassManagement() {
               </TabsContent>
               
               <TabsContent value="manage-groups" className="space-y-4">
+                {/* Debug teachers before passing to ClassGroupManager */}
+                {console.log('About to pass teachers to ClassGroupManager:', teachers, 'length:', teachers.length)}
                 <ClassGroupManager 
                   classId={editingClass.id}
                   className={editingClass.name}
