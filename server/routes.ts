@@ -328,7 +328,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only admins can create classes" });
       }
 
-      const classData = insertClassSchema.parse(req.body);
+      // Get user's effective school ID for security
+      let effectiveSchoolId = req.body.schoolId;
+      
+      if (!user.roles.includes('superadmin')) {
+        // Regular admins can only create classes in their effective school
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        if (!effectiveSchool) {
+          return res.status(403).json({ message: "No school assignment found" });
+        }
+        effectiveSchoolId = effectiveSchool.id;
+      }
+
+      const classData = insertClassSchema.parse({
+        ...req.body,
+        schoolId: effectiveSchoolId
+      });
+      
       const newClass = await storage.createClass(classData);
       
       res.json(newClass);
@@ -351,7 +367,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const classId = parseInt(req.params.id);
-      const updateData = req.body;
+      let updateData = req.body;
+      
+      if (!user.roles.includes('superadmin')) {
+        // Regular admins can only update classes in their effective school
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        if (!effectiveSchool) {
+          return res.status(403).json({ message: "No school assignment found" });
+        }
+        
+        // Verify the class belongs to user's effective school
+        const existingClass = await storage.getClass(classId);
+        if (!existingClass || existingClass.schoolId !== effectiveSchool.id) {
+          return res.status(403).json({ message: "Cannot update class from different school" });
+        }
+        
+        // Ensure schoolId cannot be changed
+        updateData = {
+          ...updateData,
+          schoolId: effectiveSchool.id
+        };
+      }
+
       const updatedClass = await storage.updateClass(classId, updateData);
       
       res.json(updatedClass);
@@ -419,7 +456,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only admins can create student groups" });
       }
 
-      const groupData = insertStudentGroupSchema.parse(req.body);
+      // Get user's effective school ID for security
+      let effectiveSchoolId = req.body.schoolId;
+      
+      if (!user.roles.includes('superadmin')) {
+        // Regular admins can only create groups in their effective school
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        if (!effectiveSchool) {
+          return res.status(403).json({ message: "No school assignment found" });
+        }
+        effectiveSchoolId = effectiveSchool.id;
+      }
+
+      const groupData = insertStudentGroupSchema.parse({
+        ...req.body,
+        schoolId: effectiveSchoolId
+      });
+      
       const newGroup = await storage.createStudentGroup(groupData);
       
       res.json(newGroup);
@@ -442,7 +495,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const groupId = parseInt(req.params.id);
-      const updateData = req.body;
+      let updateData = req.body;
+      
+      if (!user.roles.includes('superadmin')) {
+        // Regular admins can only update groups in their effective school
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        if (!effectiveSchool) {
+          return res.status(403).json({ message: "No school assignment found" });
+        }
+        
+        // Verify the group belongs to user's effective school
+        const existingGroup = await storage.getStudentGroup(groupId);
+        if (!existingGroup || existingGroup.schoolId !== effectiveSchool.id) {
+          return res.status(403).json({ message: "Cannot update group from different school" });
+        }
+        
+        // Ensure schoolId cannot be changed
+        updateData = {
+          ...updateData,
+          schoolId: effectiveSchool.id
+        };
+      }
+
       const updatedGroup = await storage.updateStudentGroup(groupId, updateData);
       
       res.json(updatedGroup);

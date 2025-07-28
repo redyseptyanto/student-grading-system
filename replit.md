@@ -10,6 +10,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (January 2025)
 
+### Security Enhancement: School ID Enforcement (January 28, 2025)
+- **Backend Security Fix**: Fixed critical issue where admin users could create classes/groups with incorrect school IDs
+- **Automatic School Assignment**: Classes and student groups now automatically use user's effective school ID
+- **Authorization Validation**: Added validation to prevent admins from modifying resources outside their assigned school
+- **Data Integrity**: Ensures all created resources properly belong to the user's authorized school context
+
 ### Major Architecture Simplification (January 28, 2025)
 - **Database Schema Consolidation**: Successfully removed redundant `teachers` and `teacher_assignments` tables 
 - **User-Based Teacher System**: Consolidated all teacher data into `users` table with role-based access via `userSchoolAssignments`
