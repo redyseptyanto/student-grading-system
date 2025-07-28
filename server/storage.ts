@@ -487,8 +487,59 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getStudentsBySchool(schoolId: number): Promise<Student[]> {
-    return await db.select().from(students).where(eq(students.schoolId, schoolId));
+  async getStudentsBySchool(schoolId: number): Promise<any[]> {
+    // Get students with their current enrollment data for specific school (Admin view)
+    const result = await db
+      .select({
+        // Student profile data
+        id: students.id,
+        nsp: students.nsp,
+        nis: students.nis,
+        fullName: students.fullName,
+        nickname: students.nickname,
+        gender: students.gender,
+        dateOfBirth: students.dateOfBirth,
+        parentContact: students.parentContact,
+        address: students.address,
+        parentId: students.parentId,
+        schoolId: students.schoolId,
+        isActive: students.isActive,
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+        
+        // Current enrollment data (2025/2026)
+        enrollmentId: studentEnrollments.id,
+        academicYear: studentEnrollments.academicYear,
+        classId: studentEnrollments.classId,
+        groupId: studentEnrollments.groupId,
+        schoolCode: studentEnrollments.schoolCode,
+        status: studentEnrollments.status,
+        noAbsence: studentEnrollments.noAbsence,
+        sakit: studentEnrollments.sakit,
+        izin: studentEnrollments.izin,
+        alpa: studentEnrollments.alpa,
+        tinggiBadan: studentEnrollments.tinggiBadan,
+        beratBadan: studentEnrollments.beratBadan,
+        
+        // Class and group names
+        className: classes.name,
+        groupName: studentGroups.name,
+      })
+      .from(students)
+      .leftJoin(studentEnrollments, and(
+        eq(students.id, studentEnrollments.studentId),
+        eq(studentEnrollments.academicYear, '2025/2026'),
+        eq(studentEnrollments.isActive, true)
+      ))
+      .leftJoin(classes, eq(studentEnrollments.classId, classes.id))
+      .leftJoin(studentGroups, eq(studentEnrollments.groupId, studentGroups.id))
+      .where(and(
+        eq(students.schoolId, schoolId),
+        eq(students.isActive, true)
+      ))
+      .orderBy(students.fullName);
+    
+    return result;
   }
 
   async getStudentsByClass(classId: number): Promise<Student[]> {
@@ -945,8 +996,60 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin operations
-  async getStudentsWithDetails(): Promise<Student[]> {
-    return await db.select().from(students);
+  async getStudentsWithDetails(): Promise<any[]> {
+    // Get students with their current enrollment data for all schools (SuperAdmin view)
+    const result = await db
+      .select({
+        // Student profile data
+        id: students.id,
+        nsp: students.nsp,
+        nis: students.nis,
+        fullName: students.fullName,
+        nickname: students.nickname,
+        gender: students.gender,
+        dateOfBirth: students.dateOfBirth,
+        parentContact: students.parentContact,
+        address: students.address,
+        parentId: students.parentId,
+        schoolId: students.schoolId,
+        isActive: students.isActive,
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+        
+        // Current enrollment data (2025/2026)
+        enrollmentId: studentEnrollments.id,
+        academicYear: studentEnrollments.academicYear,
+        classId: studentEnrollments.classId,
+        groupId: studentEnrollments.groupId,
+        schoolCode: studentEnrollments.schoolCode,
+        status: studentEnrollments.status,
+        noAbsence: studentEnrollments.noAbsence,
+        sakit: studentEnrollments.sakit,
+        izin: studentEnrollments.izin,
+        alpa: studentEnrollments.alpa,
+        tinggiBadan: studentEnrollments.tinggiBadan,
+        beratBadan: studentEnrollments.beratBadan,
+        
+        // Class and group names
+        className: classes.name,
+        groupName: studentGroups.name,
+        
+        // School name
+        schoolName: schools.name,
+      })
+      .from(students)
+      .leftJoin(studentEnrollments, and(
+        eq(students.id, studentEnrollments.studentId),
+        eq(studentEnrollments.academicYear, '2025/2026'),
+        eq(studentEnrollments.isActive, true)
+      ))
+      .leftJoin(classes, eq(studentEnrollments.classId, classes.id))
+      .leftJoin(studentGroups, eq(studentEnrollments.groupId, studentGroups.id))
+      .leftJoin(schools, eq(students.schoolId, schools.id))
+      .where(eq(students.isActive, true))
+      .orderBy(students.fullName);
+    
+    return result;
   }
 
   async createStudentAdmin(data: InsertStudent): Promise<Student> {
