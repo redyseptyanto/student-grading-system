@@ -74,6 +74,9 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const [assignToGroupId, setAssignToGroupId] = useState<string>("no-group");
   const { toast } = useToast();
 
+  // Debug log teachers data
+  console.log('ClassGroupManager received teachers:', teachers, 'type:', typeof teachers, 'isArray:', Array.isArray(teachers));
+
   // Get all groups and filter by class on frontend for now
   const { data: allGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
     queryKey: ['/api/student-groups'],
@@ -628,6 +631,9 @@ export default function ClassManagement() {
   
   // Ensure teachers is always an array
   const teachers = Array.isArray(teachersData) ? teachersData : [];
+  
+  // Debug log teachers data
+  console.log('ClassManagement teachers data:', { teachersData, teachers, teachersLoading, effectiveSchool });
 
   // For non-superadmin users, use their effective school instead of fetching all schools
   const schools = effectiveSchool ? [effectiveSchool] : [];

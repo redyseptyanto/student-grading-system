@@ -368,8 +368,8 @@ export type InsertSchool = z.infer<typeof insertSchoolSchema>;
 export type School = typeof schools.$inferSelect;
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
-export type InsertTeacher = z.infer<typeof insertTeacherSchema>;
-export type Teacher = typeof teachers.$inferSelect;
+// Teacher type now uses User since teachers are users with teacher role
+export type Teacher = typeof users.$inferSelect;
 export type InsertParent = z.infer<typeof insertParentSchema>;
 export type Parent = typeof parents.$inferSelect;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
