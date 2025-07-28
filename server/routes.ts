@@ -504,6 +504,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newGroup = await storage.createStudentGroup(groupData);
       
+      // Handle teacher assignments if provided (separate from group data)
+      if (req.body.teacherId && req.body.teacherId !== 'no-teacher') {
+        console.log('Processing teacher assignment for new group:', newGroup.id, 'teacher:', req.body.teacherId);
+        
+        const teacherUserId = req.body.teacherId.toString();
+        const academicYear = groupData.academicYear || '2025/2026';
+        
+        await storage.assignTeacherToGroups(teacherUserId, [newGroup.id], effectiveSchoolId, academicYear);
+        console.log('Assigned teacher', teacherUserId, 'to new group', newGroup.id);
+      }
+      
       res.json(newGroup);
     } catch (error) {
       console.error("Error creating student group:", error);
@@ -547,6 +558,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedGroup = await storage.updateStudentGroup(groupId, updateData);
+      
+      // Handle teacher assignments if provided
+      if (updateData.teacherId !== undefined) {
+        console.log('Processing teacher assignment for group:', groupId, 'teacher:', updateData.teacherId);
+        
+        // Get user's effective school ID for security
+        let effectiveSchoolId;
+        if (!user.roles.includes('superadmin')) {
+          const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+          effectiveSchoolId = effectiveSchool?.id;
+        } else {
+          // For superadmin, get school from the group
+          const groupInfo = await storage.getStudentGroup(groupId);
+          effectiveSchoolId = groupInfo?.schoolId;
+        }
+        
+        if (effectiveSchoolId) {
+          // Remove existing assignments for this group in this academic year
+          await storage.removeTeacherFromGroup(groupId, '2025/2026');
+          
+          // Add new assignment if teacher is selected
+          if (updateData.teacherId && updateData.teacherId !== 'no-teacher') {
+            const teacherUserId = updateData.teacherId.toString();
+            await storage.assignTeacherToGroups(teacherUserId, [groupId], effectiveSchoolId, '2025/2026');
+            console.log('Assigned teacher', teacherUserId, 'to group', groupId);
+          }
+        }
+      }
       
       res.json(updatedGroup);
     } catch (error) {
