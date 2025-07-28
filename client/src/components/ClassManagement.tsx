@@ -288,9 +288,9 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="no-teacher">No teacher assigned</SelectItem>
-                    {teachers.map((teacher: Teacher) => (
+                    {teachers && Array.isArray(teachers) && teachers.map((teacher: any) => (
                       <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                        {teacher.fullName}
+                        {teacher.fullName || `${teacher.firstName} ${teacher.lastName}`.trim() || teacher.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -359,9 +359,9 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="no-teacher">No teacher assigned</SelectItem>
-                              {teachers.map((teacher: Teacher) => (
+                              {teachers && Array.isArray(teachers) && teachers.map((teacher: any) => (
                                 <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                                  {teacher.fullName}
+                                  {teacher.fullName || `${teacher.firstName} ${teacher.lastName}`.trim() || teacher.email}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1393,9 +1393,9 @@ export default function ClassManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">No teacher assigned</SelectItem>
-                    {teachers.map((teacher: Teacher) => (
+                    {teachers && Array.isArray(teachers) && teachers.map((teacher: any) => (
                       <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                        {teacher.fullName}
+                        {teacher.fullName || `${teacher.firstName} ${teacher.lastName}`.trim() || teacher.email}
                       </SelectItem>
                     ))}
                   </SelectContent>

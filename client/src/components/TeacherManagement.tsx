@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Edit, Trash2, GraduationCap, Users, BookOpen, School, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import FilterBar from "@/components/ui/FilterBar";
 import PaginatedTable from "@/components/ui/PaginatedTable";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -48,6 +49,7 @@ export default function TeacherManagement() {
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Queries
@@ -59,9 +61,19 @@ export default function TeacherManagement() {
     queryKey: ['/api/student-groups'],
   });
 
-  const { data: schools, isLoading: schoolsLoading } = useQuery({
+  const { data: allSchools, isLoading: schoolsLoading } = useQuery({
     queryKey: ['/api/schools'],
   });
+  
+  // Get user's effective school (non-superadmin users can only see their assigned school)
+  const effectiveSchool = user && user.roles && !user.roles.includes('superadmin') 
+    ? allSchools?.find((school: any) => user.schoolAssignments?.some((assignment: any) => 
+        assignment.schoolId === school.id && assignment.academicYear === "2025/2026"
+      ))
+    : null;
+  
+  // Limit schools to effective school for non-superadmin users
+  const schools = effectiveSchool ? [effectiveSchool] : (allSchools || []);
 
   // Form setup
   const form = useForm<TeacherFormData>({
@@ -70,7 +82,7 @@ export default function TeacherManagement() {
       fullName: "",
       email: "",
       subjects: [],
-      assignedGroups: [],
+      assignedClasses: [],
       phone: "",
       qualifications: "",
     },
@@ -156,7 +168,7 @@ export default function TeacherManagement() {
       fullName: teacher.fullName,
       email: teacher.email || "",
       subjects: teacher.subjects || [],
-      assignedGroups: teacher.assignedGroups || [],
+      assignedClasses: teacher.assignedClasses || [],
       phone: teacher.phone || "",
       qualifications: teacher.qualifications || "",
     });
@@ -328,20 +340,17 @@ export default function TeacherManagement() {
                 )
               },
               { 
-                key: "assignedGroups", 
-                label: "Assigned Groups", 
+                key: "assignedClasses", 
+                label: "Assigned Classes", 
                 render: (teacher) => (
                   <div className="flex flex-wrap gap-1">
-                    {teacher.assignedGroups?.map((groupId: number) => {
-                      const groupName = (studentGroups || []).find((g: any) => g.id === groupId)?.name;
-                      return groupName ? (
-                        <Badge key={groupId} variant="secondary" className="text-xs">
-                          {groupName}
-                        </Badge>
-                      ) : null;
-                    })}
-                    {!teacher.assignedGroups?.length && (
-                      <span className="text-sm text-gray-500">No groups</span>
+                    {teacher.assignedClasses?.map((className: string) => (
+                      <Badge key={className} variant="secondary" className="text-xs">
+                        {className}
+                      </Badge>
+                    ))}
+                    {!teacher.assignedClasses?.length && (
+                      <span className="text-sm text-gray-500">No classes</span>
                     )}
                   </div>
                 )
@@ -492,48 +501,12 @@ export default function TeacherManagement() {
               />
               <FormField
                 control={form.control}
-                name="assignedGroups"
+                name="assignedClasses"
                 render={() => (
                   <FormItem>
-                    <FormLabel>Assigned Student Groups</FormLabel>
+                    <FormLabel>Assigned Classes</FormLabel>
                     <div className="grid grid-cols-1 gap-2">
-                      {groupsLoading ? (
-                        <p className="text-sm text-gray-500">Loading student groups...</p>
-                      ) : (
-                        (studentGroups || []).map((group: any) => (
-                          <FormField
-                            key={group.id}
-                            control={form.control}
-                            name="assignedGroups"
-                            render={({ field }) => {
-                              return (
-                                <FormItem
-                                  key={group.id}
-                                  className="flex flex-row items-start space-x-3 space-y-0"
-                                >
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(group.id)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...(field.value || []), group.id])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== group.id
-                                              )
-                                            );
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm font-normal">
-                                    {group.name} - {(schools || []).find((s: any) => s.id === group.schoolId)?.name || 'Unknown School'}
-                                  </FormLabel>
-                                </FormItem>
-                              );
-                            }}
-                          />
-                        ))
-                      )}
+                      <p className="text-sm text-gray-500">Class assignments are managed through the user's school assignments.</p>
                     </div>
                     <FormMessage />
                   </FormItem>
