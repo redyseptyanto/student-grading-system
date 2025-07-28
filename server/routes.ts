@@ -289,19 +289,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let classes: any[] = [];
+      const withStudentCount = req.query.withStudentCount === 'true';
       
       if (user.roles.includes('superadmin')) {
         // SuperAdmin can see all classes
-        classes = await storage.getClasses();
+        classes = withStudentCount ? await storage.getClassesWithStudentCount() : await storage.getClasses();
       } else if (user.roles.includes('admin')) {
         // Admin can only see classes from their effective school
         const effectiveSchool = await storage.getUserEffectiveSchool(userId);
         if (effectiveSchool) {
           classes = await storage.getClassesBySchool(effectiveSchool.id);
+          // Note: For now, student count is only for all classes; school-specific can be added later
         }
       } else {
         // Other roles get all classes (for now, can be restricted later)
-        classes = await storage.getClasses();
+        classes = withStudentCount ? await storage.getClassesWithStudentCount() : await storage.getClasses();
       }
 
       res.json(classes);

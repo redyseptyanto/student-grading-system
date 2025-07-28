@@ -68,7 +68,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupTeacherId, setNewGroupTeacherId] = useState<string>("no-teacher");
   const [newGroupDescription, setNewGroupDescription] = useState("");
-  const [newGroupMaxStudents, setNewGroupMaxStudents] = useState("10");
+
   const [editingInlineGroup, setEditingInlineGroup] = useState<StudentGroup | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
   const [assignToGroupId, setAssignToGroupId] = useState<string>("no-group");
@@ -102,7 +102,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       setNewGroupName("");
       setNewGroupTeacherId("no-teacher");
       setNewGroupDescription("");
-      setNewGroupMaxStudents("10");
+
       toast({ title: "Success", description: "Student group created successfully" });
     },
     onError: (error: any) => {
@@ -185,7 +185,6 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       classId: classId,
       teacherId: newGroupTeacherId && newGroupTeacherId !== "no-teacher" ? parseInt(newGroupTeacherId) : null,
       description: newGroupDescription,
-      maxStudents: parseInt(newGroupMaxStudents),
       schoolId: effectiveSchool?.id || 1,
     };
     createInlineGroupMutation.mutate(data);
@@ -197,7 +196,6 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       name: formData.get('name') as string,
       teacherId: teacherId && teacherId !== "no-teacher" ? parseInt(teacherId) : null,
       description: formData.get('description') as string,
-      maxStudents: parseInt(formData.get('maxStudents') as string),
       isActive: formData.get('isActive') === 'on',
     };
     updateInlineGroupMutation.mutate({ id: group.id, data });
@@ -293,17 +291,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="inlineGroupMaxStudents">Max Students</Label>
-                <Input
-                  id="inlineGroupMaxStudents"
-                  type="number"
-                  value={newGroupMaxStudents}
-                  onChange={(e) => setNewGroupMaxStudents(e.target.value)}
-                  placeholder="10"
-                  required
-                />
-              </div>
+
               <div>
                 <Label htmlFor="inlineGroupDescription">Description</Label>
                 <Input
@@ -374,10 +362,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                             </SelectContent>
                           </Select>
                         </div>
-                        <div>
-                          <Label>Max Students</Label>
-                          <Input name="maxStudents" type="number" defaultValue={group.maxStudents} required />
-                        </div>
+
                         <div>
                           <Label>Description</Label>
                           <Input name="description" defaultValue={group.description || ""} />
@@ -419,8 +404,6 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                         </div>
                         <div className="text-sm text-gray-600 mt-1">
                           <span>Teacher: {getTeacherName(group.teacherId)}</span>
-                          <span className="mx-2">•</span>
-                          <span>Max: {group.maxStudents} students</span>
                           {group.description && (
                             <>
                               <span className="mx-2">•</span>
@@ -629,12 +612,18 @@ export default function ClassManagement() {
   const [groupClassFilter, setGroupClassFilter] = useState("ALL_CLASSES");
 
   // Fetch data
-  const { data: classes = [], isLoading: classesLoading } = useQuery<Class[]>({
+  const { data: classes = [], isLoading: classesLoading } = useQuery<(Class & { studentCount?: number })[]>({
     queryKey: ['/api/classes'],
+    queryFn: () => apiRequest('GET', '/api/classes?withStudentCount=true'),
   });
 
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
     queryKey: ['/api/admin/teachers'],
+    queryFn: () => {
+      const schoolId = effectiveSchool?.id;
+      return apiRequest('GET', schoolId ? `/api/admin/teachers?schoolId=${schoolId}` : '/api/admin/teachers');
+    },
+    enabled: !!effectiveSchool,
   });
 
   // For non-superadmin users, use their effective school instead of fetching all schools
@@ -1015,7 +1004,7 @@ export default function ClassManagement() {
                   { key: "name", label: "Class Name", render: (classData) => <span className="font-medium">{classData.name}</span> },
                   { key: "school", label: "School", render: (classData) => getSchoolName(classData.schoolId) },
                   { key: "academicYear", label: "Academic Year" },
-                  { key: "capacity", label: "Capacity" },
+                  { key: "studentCount", label: "Student Count", render: (classData) => <span className="font-medium">{classData.studentCount || 0} students</span> },
                   { 
                     key: "status", 
                     label: "Status", 

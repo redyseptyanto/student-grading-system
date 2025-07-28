@@ -336,6 +336,28 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(classes);
   }
 
+  async getClassesWithStudentCount(): Promise<(Class & { studentCount: number })[]> {
+    const classesWithCounts = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        schoolId: classes.schoolId,
+        academicYear: classes.academicYear,
+        capacity: classes.capacity,
+        description: classes.description,
+        isActive: classes.isActive,
+        createdAt: classes.createdAt,
+        updatedAt: classes.updatedAt,
+        studentCount: sql<number>`CAST(COUNT(${students.id}) AS INTEGER)`,
+      })
+      .from(classes)
+      .leftJoin(students, and(eq(students.classId, classes.id), eq(students.isActive, true)))
+      .groupBy(classes.id)
+      .orderBy(classes.name);
+
+    return classesWithCounts;
+  }
+
   async getClassesBySchool(schoolId: number): Promise<Class[]> {
     return await db.select().from(classes).where(eq(classes.schoolId, schoolId));
   }
@@ -433,6 +455,31 @@ export class DatabaseStorage implements IStorage {
 
   async getTeachers(): Promise<Teacher[]> {
     return await db.select().from(teachers);
+  }
+
+  async getTeachersBySchool(schoolId: number): Promise<Teacher[]> {
+    return await db
+      .select({
+        id: teachers.id,
+        userId: teachers.userId,
+        fullName: teachers.fullName,
+        email: teachers.email,
+        phone: teachers.phone,
+        subject: teachers.subject,
+        qualifications: teachers.qualifications,
+        isActive: teachers.isActive,
+        createdAt: teachers.createdAt,
+        updatedAt: teachers.updatedAt,
+      })
+      .from(teachers)
+      .innerJoin(userSchoolAssignments, eq(teachers.userId, userSchoolAssignments.userId))
+      .where(
+        and(
+          eq(userSchoolAssignments.schoolId, schoolId),
+          eq(userSchoolAssignments.isActive, true),
+          eq(teachers.isActive, true)
+        )
+      );
   }
 
   async getTeachersWithDetails(): Promise<any[]> {
