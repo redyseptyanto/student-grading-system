@@ -74,10 +74,10 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const [assignToGroupId, setAssignToGroupId] = useState<string>("no-group");
   const { toast } = useToast();
 
-  // Debug log teachers data
-  console.log('ClassGroupManager received teachers:', teachers, 'type:', typeof teachers, 'isArray:', Array.isArray(teachers));
-  console.log('Teachers array length:', teachers.length);
-  teachers.forEach((t, i) => console.log(`Teacher ${i}:`, t.id, t.fullName));
+  // Ensure teachers is available
+  if (!teachers || !Array.isArray(teachers)) {
+    console.warn('ClassGroupManager: teachers prop is not an array:', teachers);
+  }
 
   // Get all groups and filter by class on frontend for now
   const { data: allGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
@@ -288,11 +288,15 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="no-teacher">No teacher assigned</SelectItem>
-                    {teachers && Array.isArray(teachers) && teachers.map((teacher: any) => (
-                      <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                        {teacher.fullName || `${teacher.firstName} ${teacher.lastName}`.trim() || teacher.email}
-                      </SelectItem>
-                    ))}
+                    {teachers && Array.isArray(teachers) && teachers.length > 0 ? (
+                      teachers.map((teacher: any) => (
+                        <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                          {teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="loading" disabled>Loading teachers...</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
