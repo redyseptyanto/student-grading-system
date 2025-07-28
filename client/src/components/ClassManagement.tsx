@@ -512,35 +512,33 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                 <div className="text-sm font-medium text-gray-700 mb-2">
                   Students in {className} ({Array.isArray(classStudents) ? classStudents.length : 0} total)
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {Array.isArray(classStudents) && classStudents.map((student: Student) => (
-                    <div
-                      key={student.id}
-                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                        selectedStudents.has(student.id)
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => handleStudentToggle(student.id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={selectedStudents.has(student.id)}
-                          onCheckedChange={() => handleStudentToggle(student.id)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm">{student.fullName}</div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Group: {getGroupName(student.groupId)}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            ID: {student.id}
+                <div className="border rounded-lg">
+                  <div className="divide-y">
+                    {Array.isArray(classStudents) && classStudents
+                      .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                      .map((student: Student) => (
+                      <div
+                        key={student.id}
+                        className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
+                          selectedStudents.has(student.id) ? 'bg-blue-50' : ''
+                        }`}
+                        onClick={() => handleStudentToggle(student.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={selectedStudents.has(student.id)}
+                            onCheckedChange={() => handleStudentToggle(student.id)}
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{student.fullName}</div>
+                            <div className="text-xs text-gray-500">
+                              Group: {getGroupName(student.groupId)} • ID: {student.id}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -628,7 +626,10 @@ export default function ClassManagement() {
   // Fetch data
   const { data: classes = [], isLoading: classesLoading } = useQuery<(Class & { studentCount?: number })[]>({
     queryKey: ['/api/classes'],
-    queryFn: () => apiRequest('GET', '/api/classes?withStudentCount=true'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/classes?withStudentCount=true');
+      return await response.json();
+    },
   });
 
   const { data: teachersData, isLoading: teachersLoading, error: teachersError } = useQuery<Teacher[]>({
@@ -844,14 +845,21 @@ export default function ClassManagement() {
     updateGroupMutation.mutate({ id: editingGroup.id, data });
   };
 
-  const getTeacherName = (teacherId?: number) => {
-    const teacher = teachers.find((t: Teacher) => t.id == teacherId);
+  const getTeacherName = (teacherId?: number | string) => {
+    if (!teacherId) return 'Unassigned';
+    const teacher = teachers.find((t: Teacher) => t.id.toString() === teacherId.toString());
     return teacher ? (teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email) : 'Unassigned';
   };
 
   const getClassName = (classId: number) => {
     const classData = (classes || []).find((c: Class) => c.id === classId);
     return classData ? classData.name : 'Unknown Class';
+  };
+
+  const getGroupName = (groupId?: number) => {
+    if (!groupId) return 'No Group';
+    const group = studentGroups.find((g: StudentGroup) => g.id === groupId);
+    return group ? group.name : 'Unknown Group';
   };
 
   const getSchoolName = (schoolId: number) => {
