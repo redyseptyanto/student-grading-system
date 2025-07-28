@@ -628,6 +628,7 @@ export class DatabaseStorage implements IStorage {
   async getStudentsByTeacherGroups(teacherUserId: string, classId: number, academicYear: string, schoolId: number): Promise<any[]> {
     // Get students based on group assignments for the specific teacher
     console.log('getStudentsByTeacherGroups called with:', { teacherUserId, classId, academicYear, schoolId });
+    console.log('Query conditions: teacher=', teacherUserId, 'class=', classId, 'school=', schoolId, 'year=', academicYear);
     
     const result = await db
       .select({
@@ -669,7 +670,10 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(studentEnrollments, eq(students.id, studentEnrollments.studentId))
       .leftJoin(classes, eq(studentEnrollments.classId, classes.id))
       .leftJoin(studentGroups, eq(studentEnrollments.groupId, studentGroups.id))
-      .innerJoin(groupTeacherAssignments, eq(studentEnrollments.groupId, groupTeacherAssignments.groupId))
+      .innerJoin(groupTeacherAssignments, and(
+        eq(studentEnrollments.groupId, groupTeacherAssignments.groupId),
+        eq(studentEnrollments.classId, groupTeacherAssignments.classId)
+      ))
       .where(and(
         eq(groupTeacherAssignments.teacherUserId, teacherUserId),
         eq(studentEnrollments.classId, classId),

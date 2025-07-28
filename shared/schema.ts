@@ -105,6 +105,7 @@ export const studentGroups = pgTable("student_groups", {
 export const groupTeacherAssignments = pgTable("group_teacher_assignments", {
   id: serial("id").primaryKey(),
   groupId: integer("group_id").notNull().references(() => studentGroups.id, { onDelete: "cascade" }),
+  classId: integer("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
   teacherUserId: varchar("teacher_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
   academicYear: varchar("academic_year").notNull().default("2025/2026"),
