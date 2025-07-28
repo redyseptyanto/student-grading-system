@@ -631,10 +631,12 @@ export default function ClassManagement() {
     queryFn: () => apiRequest('GET', '/api/classes?withStudentCount=true'),
   });
 
-  const { data: teachersData, isLoading: teachersLoading } = useQuery<Teacher[]>({
+  const { data: teachersData, isLoading: teachersLoading, error: teachersError } = useQuery<Teacher[]>({
     queryKey: ['/api/admin/teachers'],
     queryFn: () => apiRequest('GET', '/api/admin/teachers'),
     enabled: true,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache
   });
   
   // Ensure teachers is always an array
@@ -645,10 +647,18 @@ export default function ClassManagement() {
     teachersData, 
     teachers, 
     teachersLoading, 
+    teachersError,
     effectiveSchool,
     teachersDataType: typeof teachersData,
     isTeachersArray: Array.isArray(teachersData)
   });
+  
+  // Force log raw teachers data
+  if (teachersData) {
+    console.log('Raw teachersData received:', teachersData);
+    console.log('Teachers count:', teachersData.length);
+    teachersData.forEach((t, i) => console.log(`Teacher ${i}:`, { id: t.id, fullName: t.fullName, email: t.email }));
+  }
 
   // For non-superadmin users, use their effective school instead of fetching all schools
   const schools = effectiveSchool ? [effectiveSchool] : [];
@@ -1375,7 +1385,10 @@ export default function ClassManagement() {
                   <div className="text-center py-8">
                     <p className="text-gray-500">Loading teachers data...</p>
                     <p className="text-sm text-gray-400 mt-2">
-                      Teachers found: {teachers.length} | Loading: {teachersLoading ? 'Yes' : 'No'}
+                      Teachers found: {teachers.length} | Loading: {teachersLoading ? 'Yes' : 'No'} | Error: {teachersError ? 'Yes' : 'No'}
+                    </p>
+                    <p className="text-xs text-gray-300 mt-1">
+                      Raw data: {JSON.stringify(teachersData)}
                     </p>
                   </div>
                 )}
