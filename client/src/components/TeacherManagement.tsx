@@ -199,7 +199,8 @@ export default function TeacherManagement() {
 
   // Filter teachers
   const filteredTeachers = (teachers || []).filter((teacher: any) => {
-    const matchesSearch = teacher.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const teacherName = teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email || '';
+    const matchesSearch = teacherName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          teacher.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesSchool = !selectedSchool || selectedSchool === "ALL_SCHOOLS" || teacher.schoolName === selectedSchool;
