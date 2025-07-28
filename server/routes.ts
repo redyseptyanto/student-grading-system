@@ -480,13 +480,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user.roles.includes('superadmin')) {
         // SuperAdmin can see all schools
         schools = await storage.getSchools();
+      } else if (user.roles.includes('teacher')) {
+        // Teachers (including admin-teachers) can see their assigned schools
+        schools = await storage.getTeacherAssignedSchools(userId);
       } else if (user.roles.includes('admin')) {
         // Regular admin can see schools they're assigned to
         const effectiveSchool = await storage.getUserEffectiveSchool(userId);
         schools = effectiveSchool ? [effectiveSchool] : [];
-      } else if (user.roles.includes('teacher')) {
-        // Teachers can only see their assigned schools
-        schools = await storage.getTeacherAssignedSchools(userId);
       } else {
         schools = [];
       }
