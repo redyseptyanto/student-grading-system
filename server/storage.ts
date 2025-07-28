@@ -210,9 +210,9 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Fallback to user's primary school
-    const user = await this.getUser(userId);
-    if (user?.schoolId) {
-      const [school] = await db.select().from(schools).where(eq(schools.id, user.schoolId));
+    const fallbackUser = await this.getUser(userId);
+    if (fallbackUser?.schoolId) {
+      const [school] = await db.select().from(schools).where(eq(schools.id, fallbackUser.schoolId));
       return school;
     }
 
@@ -879,7 +879,6 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return narration;
-  ```text
   }
 
   async updateStudentGradesBatch(aspect: string, gradeData: Record<number, string>): Promise<any[]> {
