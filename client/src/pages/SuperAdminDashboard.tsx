@@ -40,7 +40,7 @@ export default function SuperAdminDashboard() {
   // Multi-school assignment states
   const [schoolAssignmentDialogOpen, setSchoolAssignmentDialogOpen] = useState(false);
   const [selectedUserForAssignment, setSelectedUserForAssignment] = useState<User | null>(null);
-  const [selectedSchoolAssignments, setSelectedSchoolAssignments] = useState<Array<{ schoolId: number; schoolName: string; role: string }>>([]);
+  const [selectedSchoolAssignments, setSelectedSchoolAssignments] = useState<Array<{ schoolId: number; schoolName: string; roles: string[] }>>([]);
 
   // Queries
   const { data: schools = [], isLoading: schoolsLoading } = useQuery({
@@ -222,7 +222,7 @@ export default function SuperAdminDashboard() {
 
   // School assignment mutation
   const assignUserToSchoolsMutation = useMutation({
-    mutationFn: async ({ userId, schoolAssignments }: { userId: string; schoolAssignments: Array<{ schoolId: number; role: string }> }) => {
+    mutationFn: async ({ userId, schoolAssignments }: { userId: string; schoolAssignments: Array<{ schoolId: number; roles: string[] }> }) => {
       return await apiRequest("POST", `/api/superadmin/users/${userId}/school-assignments`, { schoolAssignments });
     },
     onSuccess: () => {
@@ -256,24 +256,35 @@ export default function SuperAdminDashboard() {
   };
 
   const addSchoolAssignment = () => {
-    setSelectedSchoolAssignments([...selectedSchoolAssignments, { schoolId: 0, schoolName: "", role: "teacher" }]);
+    setSelectedSchoolAssignments([...selectedSchoolAssignments, { schoolId: 0, schoolName: "", roles: ["teacher"] }]);
   };
 
   const removeSchoolAssignment = (index: number) => {
     setSelectedSchoolAssignments(selectedSchoolAssignments.filter((_, i) => i !== index));
   };
 
-  const updateSchoolAssignment = (index: number, field: "schoolId" | "role", value: string) => {
+  const updateSchoolAssignment = (index: number, field: "schoolId" | "roles", value: string | string[]) => {
     const updated = [...selectedSchoolAssignments];
     if (field === "schoolId") {
-      const school = (schools as School[]).find(s => s.id === parseInt(value));
+      const school = (schools as School[]).find(s => s.id === parseInt(value as string));
       updated[index] = { 
         ...updated[index], 
-        schoolId: parseInt(value), 
+        schoolId: parseInt(value as string), 
         schoolName: school?.name || "" 
       };
+    } else if (field === "roles") {
+      updated[index] = { ...updated[index], roles: value as string[] };
+    }
+    setSelectedSchoolAssignments(updated);
+  };
+
+  const toggleRoleInAssignment = (index: number, role: string) => {
+    const updated = [...selectedSchoolAssignments];
+    const currentRoles = updated[index].roles;
+    if (currentRoles.includes(role)) {
+      updated[index].roles = currentRoles.filter(r => r !== role);
     } else {
-      updated[index] = { ...updated[index], [field]: value };
+      updated[index].roles = [...currentRoles, role];
     }
     setSelectedSchoolAssignments(updated);
   };
@@ -803,8 +814,8 @@ export default function SuperAdminDashboard() {
                             <div className="space-y-1">
                               <div className="flex flex-wrap gap-1">
                                 {(user as any).assignedSchools?.slice(0, 2).map((assignment: any) => (
-                                  <Badge key={`${assignment.schoolId}-${assignment.role}`} variant="outline" className="text-xs">
-                                    {assignment.schoolName} ({assignment.role})
+                                  <Badge key={`${assignment.schoolId}-${assignment.roles?.join(',')}`} variant="outline" className="text-xs">
+                                    {assignment.schoolName} ({assignment.roles?.join(', ') || 'No roles'})
                                   </Badge>
                                 ))}
                                 {(user as any).assignedSchools?.length > 2 && (
@@ -937,21 +948,21 @@ export default function SuperAdminDashboard() {
                   </Select>
                 </div>
                 
-                <div className="w-32">
-                  <Label className="text-sm">Role</Label>
-                  <Select
-                    value={assignment.role}
-                    onValueChange={(value) => updateSchoolAssignment(index, "role", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="teacher">Teacher</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="w-48">
+                  <Label className="text-sm">Roles</Label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {["admin", "teacher", "parent"].map((role) => (
+                      <label key={role} className="flex items-center space-x-1 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={assignment.roles.includes(role)}
+                          onChange={() => toggleRoleInAssignment(index, role)}
+                          className="rounded"
+                        />
+                        <span className="capitalize">{role}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 
                 <Button

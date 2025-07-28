@@ -110,7 +110,8 @@ export interface IStorage {
   updateUserRoles(id: string, roles: string[], schoolId: number | null): Promise<User>;
   addUserRole(id: string, role: string): Promise<User>;
   removeUserRole(id: string, role: string): Promise<User>;
-  assignUserToSchools(userId: string, schoolAssignments: Array<{ schoolId: number; role: string }>): Promise<void>;
+  assignUserToSchools(userId: string, schoolAssignments: Array<{ schoolId: number; roles: string[] }>): Promise<void>;
+  updateUserSchoolRoles(userId: string, schoolId: number, roles: string[]): Promise<UserSchoolAssignment>;
   getSystemStats(): Promise<{
     totalSchools: number;
     totalUsers: number;
@@ -703,59 +704,39 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schools).where(eq(schools.id, id));
   }
 
-  async getAllUsersWithSchools(): Promise<(User & { school?: School; assignedSchools?: Array<{ schoolId: number; schoolName: string; role: string }> })[]> {
-    // Get users with their primary school
-    const usersResult = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        profileImageUrl: users.profileImageUrl,
-        roles: users.roles,
-        schoolId: users.schoolId,
-        permissions: users.permissions,
-        isActive: users.isActive,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        schoolName: schools.name,
-      })
-      .from(users)
-      .leftJoin(schools, eq(users.schoolId, schools.id));
+  async getAllUsersWithSchools(): Promise<(User & { school?: School; assignedSchools?: Array<{ schoolId: number; schoolName: string; roles: string[] }> })[]> {
+    // Get all users first
+    const usersResult = await db.select().from(users);
 
-    // Get all school assignments for all users
+    // Get all school assignments
     const schoolAssignments = await db
       .select({
         userId: userSchoolAssignments.userId,
         schoolId: userSchoolAssignments.schoolId,
-        roleAtSchool: userSchoolAssignments.roleAtSchool,
+        rolesAtSchool: userSchoolAssignments.rolesAtSchool,
         schoolName: schools.name,
       })
       .from(userSchoolAssignments)
       .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
       .where(eq(userSchoolAssignments.isActive, true));
 
-    return usersResult.map(row => ({
-      id: row.id,
-      email: row.email,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      profileImageUrl: row.profileImageUrl,
-      roles: row.roles,
-      schoolId: row.schoolId,
-      permissions: row.permissions,
-      isActive: row.isActive,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      school: row.schoolName ? { name: row.schoolName } as School : undefined,
-      assignedSchools: schoolAssignments
-        .filter(assignment => assignment.userId === row.id)
-        .map(assignment => ({
+    // Get primary schools
+    const primarySchools = await db.select().from(schools);
+
+    return usersResult.map(user => {
+      const primarySchool = primarySchools.find(school => school.id === user.schoolId);
+      const userAssignments = schoolAssignments.filter(assignment => assignment.userId === user.id);
+
+      return {
+        ...user,
+        school: primarySchool,
+        assignedSchools: userAssignments.map(assignment => ({
           schoolId: assignment.schoolId,
           schoolName: assignment.schoolName || 'Unknown School',
-          role: assignment.roleAtSchool,
+          roles: assignment.rolesAtSchool || [],
         })),
-    }));
+      };
+    });
   }
 
   async updateUserRoles(id: string, roles: string[], schoolId: number | null): Promise<User> {
@@ -792,21 +773,48 @@ export class DatabaseStorage implements IStorage {
     return this.updateUserRoles(id, newRoles, user.schoolId);
   }
 
-  async assignUserToSchools(userId: string, schoolAssignments: Array<{ schoolId: number; role: string }>): Promise<void> {
+  async assignUserToSchools(userId: string, schoolAssignments: Array<{ schoolId: number; roles: string[] }>): Promise<void> {
     // Remove existing assignments for this user
     await db.delete(userSchoolAssignments).where(eq(userSchoolAssignments.userId, userId));
 
-    // Add new assignments
+    // Add new assignments with multiple roles per school
     if (schoolAssignments.length > 0) {
       const assignmentData = schoolAssignments.map(assignment => ({
         userId,
         schoolId: assignment.schoolId,
-        roleAtSchool: assignment.role,
+        rolesAtSchool: assignment.roles,
         isActive: true,
       }));
       
       await db.insert(userSchoolAssignments).values(assignmentData);
     }
+  }
+
+  async updateUserSchoolRoles(userId: string, schoolId: number, roles: string[]): Promise<UserSchoolAssignment> {
+    const [assignment] = await db
+      .update(userSchoolAssignments)
+      .set({
+        rolesAtSchool: roles,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(userSchoolAssignments.userId, userId), eq(userSchoolAssignments.schoolId, schoolId)))
+      .returning();
+    
+    if (!assignment) {
+      // Create new assignment if it doesn't exist
+      const [newAssignment] = await db
+        .insert(userSchoolAssignments)
+        .values({
+          userId,
+          schoolId,
+          rolesAtSchool: roles,
+          isActive: true,
+        })
+        .returning();
+      return newAssignment;
+    }
+    
+    return assignment;
   }
 
   async getSystemStats(): Promise<{

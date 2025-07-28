@@ -63,13 +63,13 @@ export const userSchoolAssignments = pgTable("user_school_assignments", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
-  roleAtSchool: varchar("role_at_school").notNull(), // admin, teacher, parent
+  rolesAtSchool: jsonb("roles_at_school").$type<string[]>().notNull().default([]), // ["admin", "teacher", "parent"]
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  // Ensure unique user-school-role combination
-  index("unique_user_school_role").on(table.userId, table.schoolId, table.roleAtSchool),
+  // Ensure unique user-school combination (multiple roles per assignment)
+  index("unique_user_school").on(table.userId, table.schoolId),
 ]);
 
 // Classes table - with school reference

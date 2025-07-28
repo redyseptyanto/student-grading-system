@@ -920,6 +920,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update specific user school roles
+  app.patch("/api/superadmin/users/:userId/schools/:schoolId/roles", isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+      const { userId, schoolId } = req.params;
+      const { roles } = req.body;
+      
+      if (!roles || !Array.isArray(roles)) {
+        return res.status(400).json({ message: "Roles array is required" });
+      }
+
+      const assignment = await storage.updateUserSchoolRoles(userId, parseInt(schoolId), roles);
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error updating user school roles:", error);
+      res.status(500).json({ message: "Failed to update user school roles" });
+    }
+  });
+
   // SuperAdmin System Stats
   app.get("/api/superadmin/stats", isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
