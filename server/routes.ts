@@ -681,18 +681,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const effectiveSchool = await storage.getUserEffectiveSchool(userId);
       console.log('Effective school for user:', effectiveSchool);
       
-      if (!effectiveSchool) {
-        console.log('No effective school found, trying fallback approach...');
-        // Fallback: get all teachers the admin can access
-        const allTeachers = await storage.getTeachersWithDetails();
-        const teachersForUser = allTeachers.filter(t => t.isActive);
-        return res.json(teachersForUser.slice(0, 10)); // Limit for now
+      if (effectiveSchool) {
+        // Get teachers assigned to the admin's effective school
+        const teachers = await storage.getTeachersBySchool(effectiveSchool.id);
+        console.log('Found teachers for school:', teachers.length);
+        return res.json(teachers);
       }
-      
-      // Get teachers assigned to the admin's effective school
-      const teachers = await storage.getTeachersBySchool(effectiveSchool.id);
-      console.log('Found teachers for school:', teachers.length);
-      res.json(teachers);
+
+      // Fallback: get all teachers with details if no effective school found
+      console.log('No effective school found, getting all teachers with details');
+      const allTeachers = await storage.getTeachersWithDetails();
+      const activeTeachers = allTeachers.filter(t => t.isActive);
+      console.log('Found active teachers:', activeTeachers.length);
+      res.json(activeTeachers);
     } catch (error) {
       console.error("Error fetching teachers for admin:", error);
       res.status(500).json({ message: "Failed to fetch teachers" });

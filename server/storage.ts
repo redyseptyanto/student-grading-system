@@ -211,7 +211,7 @@ export class DatabaseStorage implements IStorage {
 
   // Teacher operations
   // Teacher operations now based on users with teacher role via userSchoolAssignments
-  async getTeachersBySchool(schoolId: number): Promise<User[]> {
+  async getTeachersBySchool(schoolId: number): Promise<any[]> {
     const teacherUsers = await db
       .select({
         id: users.id,
@@ -225,10 +225,17 @@ export class DatabaseStorage implements IStorage {
         schoolId: users.schoolId,
         permissions: users.permissions,
         createdAt: users.createdAt,
-        updatedAt: users.updatedAt
+        updatedAt: users.updatedAt,
+        // Include school assignment data
+        schoolName: schools.name,
+        academicYear: userSchoolAssignments.academicYear,
+        subjects: userSchoolAssignments.subjects,
+        assignedClasses: userSchoolAssignments.assignedClasses,
+        rolesAtSchool: userSchoolAssignments.rolesAtSchool,
       })
       .from(users)
       .innerJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
+      .innerJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
       .where(
         and(
           eq(userSchoolAssignments.schoolId, schoolId),
