@@ -288,18 +288,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const withStudentCount = req.query.withStudentCount === 'true';
       
       if (user.roles.includes('superadmin')) {
-        // SuperAdmin can see all classes
+        // SuperAdmin can see all classes across all schools
         classes = withStudentCount ? await storage.getClassesWithStudentCount() : await storage.getClasses();
       } else if (user.roles.includes('admin')) {
-        // Admin can only see classes from their effective school
+        // Regular admin can only see classes from their effective school
         const effectiveSchool = await storage.getUserEffectiveSchool(userId);
         if (effectiveSchool) {
           classes = await storage.getClassesBySchool(effectiveSchool.id);
           // Note: For now, student count is only for all classes; school-specific can be added later
+        } else {
+          classes = []; // No effective school found
         }
       } else {
-        // Other roles get all classes (for now, can be restricted later)
-        classes = withStudentCount ? await storage.getClassesWithStudentCount() : await storage.getClasses();
+        // Other roles get limited access based on their assignments
+        const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+        if (effectiveSchool) {
+          classes = await storage.getClassesBySchool(effectiveSchool.id);
+        } else {
+          classes = [];
+        }
       }
 
       res.json(classes);
@@ -584,23 +591,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/stats', isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+      const user = await storage.getUser(userId);
       
-      if (effectiveSchool) {
-        // Get stats for admin's effective school only
-        const students = await storage.getStudentsBySchool(effectiveSchool.id);
-        const teachers = await storage.getTeachersBySchool(effectiveSchool.id);
-        const classes = await storage.getClassesBySchool(effectiveSchool.id);
-        const templates = await storage.getAllReportTemplates();
-        
-        res.json({
-          totalStudents: students.length,
-          totalTeachers: teachers.length,
-          totalClasses: classes.length,
-          totalReportTemplates: templates.length,
-        });
-      } else {
-        // Fallback for superadmin
+      // SuperAdmin gets system-wide stats
+      if (user?.roles.includes('superadmin')) {
         const students = await storage.getStudents();
         const teachers = await storage.getTeachersWithDetails();
         const classes = await storage.getClasses();
@@ -611,6 +605,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalTeachers: teachers.length,
           totalClasses: classes.length,
           totalReportTemplates: templates.length,
+        });
+        return;
+      }
+      
+      // Regular admin gets stats for their effective school only
+      const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+      
+      if (effectiveSchool) {
+        const students = await storage.getStudentsBySchool(effectiveSchool.id);
+        const teachers = await storage.getTeachersBySchool(effectiveSchool.id);
+        const classes = await storage.getClassesBySchool(effectiveSchool.id);
+        const templates = await storage.getAllReportTemplates(); // Templates are global for now
+        
+        res.json({
+          totalStudents: students.length,
+          totalTeachers: teachers.length,
+          totalClasses: classes.length,
+          totalReportTemplates: templates.length,
+        });
+      } else {
+        // No effective school found
+        res.json({
+          totalStudents: 0,
+          totalTeachers: 0,
+          totalClasses: 0,
+          totalReportTemplates: 0,
         });
       }
     } catch (error) {
@@ -623,22 +643,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/students', isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
       console.log('Fetching students for admin user:', userId);
       
+      // SuperAdmin gets all students across all schools
+      if (user?.roles.includes('superadmin')) {
+        console.log('SuperAdmin access: getting all students');
+        const allStudents = await storage.getStudentsWithDetails();
+        return res.json(allStudents);
+      }
+      
+      // Regular admin gets students from their effective school only
       const effectiveSchool = await storage.getUserEffectiveSchool(userId);
       console.log('Effective school for user:', effectiveSchool);
       
       if (effectiveSchool) {
-        // Get students from admin's effective school only
         const students = await storage.getStudentsBySchool(effectiveSchool.id);
         console.log('Found students for school:', students.length);
         return res.json(students);
       }
 
-      // Fallback: get all students if no effective school found (superadmin case)
-      console.log('No effective school found, getting all students');
-      const allStudents = await storage.getStudentsWithDetails();
-      res.json(allStudents);
+      // No effective school found
+      console.log('No effective school found, returning empty array');
+      res.json([]);
     } catch (error) {
       console.error("Error fetching students for admin:", error);
       res.status(500).json({ message: "Failed to fetch students" });
@@ -710,24 +738,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/teachers', isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
       console.log('Fetching teachers for admin user:', userId);
       
+      // SuperAdmin gets all teachers across all schools
+      if (user?.roles.includes('superadmin')) {
+        console.log('SuperAdmin access: getting all teachers with details');
+        const allTeachers = await storage.getTeachersWithDetails();
+        const activeTeachers = allTeachers.filter(t => t.isActive);
+        console.log('Found active teachers:', activeTeachers.length);
+        return res.json(activeTeachers);
+      }
+      
+      // Regular admin gets teachers from their effective school only
       const effectiveSchool = await storage.getUserEffectiveSchool(userId);
       console.log('Effective school for user:', effectiveSchool);
       
       if (effectiveSchool) {
-        // Get teachers assigned to the admin's effective school
         const teachers = await storage.getTeachersBySchool(effectiveSchool.id);
         console.log('Found teachers for school:', teachers.length);
         return res.json(teachers);
       }
 
-      // Fallback: get all teachers with details if no effective school found
-      console.log('No effective school found, getting all teachers with details');
-      const allTeachers = await storage.getTeachersWithDetails();
-      const activeTeachers = allTeachers.filter(t => t.isActive);
-      console.log('Found active teachers:', activeTeachers.length);
-      res.json(activeTeachers);
+      // No effective school found
+      console.log('No effective school found, returning empty array');
+      res.json([]);
     } catch (error) {
       console.error("Error fetching teachers for admin:", error);
       res.status(500).json({ message: "Failed to fetch teachers" });

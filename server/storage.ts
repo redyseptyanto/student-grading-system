@@ -39,18 +39,18 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   getUserSchoolAssignments(userId: string): Promise<UserSchoolAssignment[]>;
   getUserEffectiveSchool(userId: string): Promise<School | undefined>;
-  
+
   // Teacher operations (now user-based)
   getTeachersBySchool(schoolId: number): Promise<User[]>;
   getTeachersInSchoolByYear(schoolId: number, academicYear: string): Promise<User[]>;
   getTeachersByClass(classId: number): Promise<User[]>;
   getTeachersWithDetails(): Promise<any[]>;
   assignTeacherToGroups(teacherUserId: string, groupIds: number[]): Promise<void>;
-  
+
   // Parent operations
   getParent(userId: string): Promise<Parent | undefined>;
   createParent(parent: InsertParent): Promise<Parent>;
-  
+
   // Student operations
   getStudent(id: number): Promise<Student | undefined>;
   getStudents(): Promise<Student[]>;
@@ -61,7 +61,7 @@ export interface IStorage {
   createStudent(student: InsertStudent): Promise<Student>;
   createStudentsBulk(studentsData: InsertStudent[]): Promise<Student[]>;
   updateStudentGrades(studentId: number, aspect: string, grades: number[]): Promise<Student>;
-  
+
   // Class operations
   getClass(id: number): Promise<Class | undefined>;
   getClasses(): Promise<Class[]>;
@@ -69,7 +69,7 @@ export interface IStorage {
   createClass(classData: InsertClass): Promise<Class>;
   updateClass(id: number, data: Partial<Class>): Promise<Class>;
   deleteClass(id: number): Promise<void>;
-  
+
   // Student Group operations
   getStudentGroup(id: number): Promise<StudentGroup | undefined>;
   getStudentGroups(): Promise<StudentGroup[]>;
@@ -78,7 +78,7 @@ export interface IStorage {
   updateStudentGroup(id: number, data: Partial<StudentGroup>): Promise<StudentGroup>;
   deleteStudentGroup(id: number): Promise<void>;
   assignStudentToGroup(studentId: number, groupId: number | null): Promise<Student>;
-  
+
   // Admin operations
   getStudentsWithDetails(): Promise<Student[]>;
   updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student>;
@@ -90,10 +90,10 @@ export interface IStorage {
   createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate>;
   updateReportTemplate(id: number, data: Partial<ReportTemplate>): Promise<ReportTemplate>;
   deleteReportTemplate(id: number): Promise<void>;
-  
+
   // School operations
   getSchools(): Promise<School[]>;
-  
+
   // SuperAdmin operations
   getAllSchools(): Promise<School[]>;
   createSchool(data: InsertSchool): Promise<School>;
@@ -116,6 +116,7 @@ export interface IStorage {
   updateStudentAttendanceBatch(attendanceData: Record<number, any>): Promise<any[]>;
   saveStudentNarration(narrationData: any): Promise<any>;
   updateStudentGradesBatch(aspect: string, gradeData: Record<number, string>): Promise<any[]>;
+  userHasGlobalAccess(userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -160,7 +161,15 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  // Get user's effective school (from multi-school assignments or primary school)
   async getUserEffectiveSchool(userId: string): Promise<School | undefined> {
+    // Check if user is SuperAdmin first
+    const user = await this.getUser(userId);
+    if (user?.roles.includes('superadmin')) {
+      // SuperAdmins don't have a single effective school - they access all schools
+      return undefined;
+    }
+
     // First check if user has multi-school assignments
     const [schoolAssignment] = await db
       .select({
@@ -210,6 +219,12 @@ export class DatabaseStorage implements IStorage {
     return undefined;
   }
 
+  // Helper method to check if user should have global access
+  async userHasGlobalAccess(userId: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    return user?.roles.includes('superadmin') || false;
+  }
+
   // Teacher operations
   // Teacher operations now based on users with teacher role via userSchoolAssignments
   async getTeachersBySchool(schoolId: number): Promise<any[]> {
@@ -245,7 +260,7 @@ export class DatabaseStorage implements IStorage {
           eq(users.isActive, true)
         )
       );
-    
+
     console.log('getTeachersBySchool result for school', schoolId, ':', teacherUsers);
     return teacherUsers;
   }
@@ -276,7 +291,7 @@ export class DatabaseStorage implements IStorage {
           eq(users.isActive, true)
         )
       );
-    
+
     return teacherUsers;
   }
 
@@ -353,11 +368,11 @@ export class DatabaseStorage implements IStorage {
           eq(userSchoolAssignments.isActive, true)
         )
       );
-    
+
     if (!assignments[0] || !assignments[0].assignedClasses || assignments[0].assignedClasses.length === 0) {
       return [];
     }
-    
+
     return await db
       .select()
       .from(students)
@@ -568,10 +583,10 @@ export class DatabaseStorage implements IStorage {
       })
       .from(studentGroups)
       .where(sql`${studentGroups.teacherUserId} IS NOT NULL`);
-    
+
     // Group by teacher and merge assignments with groups
     const teacherMap = new Map();
-    
+
     for (const row of teachersWithAssignments) {
       if (!teacherMap.has(row.id)) {
         // Find the current (2025/2026) assignment for backward compatibility
@@ -579,12 +594,12 @@ export class DatabaseStorage implements IStorage {
           r.id === row.id && r.academicYear === '2025/2026'
         );
         const currentAssignment = currentAssignments[0];
-        
+
         // Get assigned groups for current teacher
         const assignedGroups = teacherGroups
           .filter(g => g.teacherUserId === row.id)
           .map(g => g.groupId);
-        
+
         teacherMap.set(row.id, {
           id: row.id,
           userId: row.userId,
@@ -605,7 +620,7 @@ export class DatabaseStorage implements IStorage {
           assignments: []
         });
       }
-      
+
       // Add assignment if it exists
       if (row.assignmentId) {
         const teacher = teacherMap.get(row.id);
@@ -615,7 +630,7 @@ export class DatabaseStorage implements IStorage {
           const assignmentGroups = teacherGroups
             .filter(g => g.teacherUserId === row.id)
             .map(g => g.groupId);
-            
+
           teacher.assignments.push({
             id: row.assignmentId,
             schoolId: row.schoolId,
@@ -630,7 +645,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
-    
+
     return Array.from(teacherMap.values());
   }
 
@@ -752,7 +767,7 @@ export class DatabaseStorage implements IStorage {
   async addUserRole(id: string, role: string): Promise<User> {
     const user = await this.getUser(id);
     if (!user) throw new Error("User not found");
-    
+
     const newRoles = user.roles.includes(role) ? user.roles : [...user.roles, role];
     return this.updateUserRoles(id, newRoles, user.schoolId);
   }
@@ -760,13 +775,13 @@ export class DatabaseStorage implements IStorage {
   async removeUserRole(id: string, role: string): Promise<User> {
     const user = await this.getUser(id);
     if (!user) throw new Error("User not found");
-    
+
     const newRoles = user.roles.filter(r => r !== role);
     // Ensure user always has at least one role
     if (newRoles.length === 0) {
       newRoles.push("parent");
     }
-    
+
     return this.updateUserRoles(id, newRoles, user.schoolId);
   }
 
@@ -782,7 +797,7 @@ export class DatabaseStorage implements IStorage {
         rolesAtSchool: assignment.roles,
         isActive: true,
       }));
-      
+
       await db.insert(userSchoolAssignments).values(assignmentData);
     }
   }
@@ -796,7 +811,7 @@ export class DatabaseStorage implements IStorage {
       })
       .where(and(eq(userSchoolAssignments.userId, userId), eq(userSchoolAssignments.schoolId, schoolId)))
       .returning();
-    
+
     if (!assignment) {
       // Create new assignment if it doesn't exist
       const [newAssignment] = await db
@@ -810,7 +825,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return newAssignment;
     }
-    
+
     return assignment;
   }
 
@@ -836,7 +851,7 @@ export class DatabaseStorage implements IStorage {
   // Teacher input system methods
   async updateStudentAttendanceBatch(attendanceData: Record<number, any>): Promise<any[]> {
     const results = [];
-    
+
     for (const [studentId, data] of Object.entries(attendanceData)) {
       const [student] = await db
         .update(students)
@@ -850,10 +865,10 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(students.id, parseInt(studentId)))
         .returning();
-      
+
       results.push(student);
     }
-    
+
     return results;
   }
 
@@ -864,27 +879,28 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return narration;
+  ```text
   }
 
   async updateStudentGradesBatch(aspect: string, gradeData: Record<number, string>): Promise<any[]> {
     const results = [];
-    
+
     for (const [studentId, gradeArrayString] of Object.entries(gradeData)) {
       // Parse grade array from string like "2,2,3,4,5,6,5"
       const gradeArray = gradeArrayString.split(',').map(g => parseInt(g.trim())).filter(g => !isNaN(g));
-      
+
       if (gradeArray.length === 0) continue;
-      
+
       // Get current student grades
       const [currentStudent] = await db
         .select()
         .from(students)
         .where(eq(students.id, parseInt(studentId)));
-      
+
       if (currentStudent) {
         const currentGrades = currentStudent.grades || {};
         currentGrades[aspect] = gradeArray;
-        
+
         const [student] = await db
           .update(students)
           .set({
@@ -893,11 +909,11 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(students.id, parseInt(studentId)))
           .returning();
-        
+
         results.push(student);
       }
     }
-    
+
     return results;
   }
 }
