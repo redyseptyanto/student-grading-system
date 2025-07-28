@@ -65,12 +65,8 @@ export default function TeacherManagement() {
     queryKey: ['/api/schools'],
   });
   
-  // Get user's effective school (non-superadmin users can only see their assigned school)
-  const effectiveSchool = user && user.roles && !user.roles.includes('superadmin') 
-    ? allSchools?.find((school: any) => user.schoolAssignments?.some((assignment: any) => 
-        assignment.schoolId === school.id && assignment.academicYear === "2025/2026"
-      ))
-    : null;
+  // Get effective school from user data
+  const effectiveSchool = (user as any)?.effectiveSchool;
   
   // Limit schools to effective school for non-superadmin users
   const schools = effectiveSchool ? [effectiveSchool] : (allSchools || []);
