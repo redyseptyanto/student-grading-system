@@ -617,14 +617,17 @@ export default function ClassManagement() {
     queryFn: () => apiRequest('GET', '/api/classes?withStudentCount=true'),
   });
 
-  const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
-    queryKey: ['/api/admin/teachers'],
+  const { data: teachersData, isLoading: teachersLoading } = useQuery<Teacher[]>({
+    queryKey: ['/api/admin/teachers', effectiveSchool?.id],
     queryFn: () => {
       const schoolId = effectiveSchool?.id;
       return apiRequest('GET', schoolId ? `/api/admin/teachers?schoolId=${schoolId}` : '/api/admin/teachers');
     },
     enabled: !!effectiveSchool,
   });
+  
+  // Ensure teachers is always an array
+  const teachers = Array.isArray(teachersData) ? teachersData : [];
 
   // For non-superadmin users, use their effective school instead of fetching all schools
   const schools = effectiveSchool ? [effectiveSchool] : [];
@@ -1133,17 +1136,7 @@ export default function ClassManagement() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div>
-                          <Label htmlFor="maxStudents">Max Students</Label>
-                          <Input
-                            id="maxStudents"
-                            name="maxStudents"
-                            type="number"
-                            placeholder="10"
-                            defaultValue="10"
-                            required
-                          />
-                        </div>
+
                         <div>
                           <Label htmlFor="description">Description</Label>
                           <Textarea
