@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Edit, Trash2, Users, UserPlus, School, Calendar, Search, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import BulkStudentAddDialog from "./BulkStudentAddDialog";
 import FilterBar from "@/components/ui/FilterBar";
 import PaginatedTable from "@/components/ui/PaginatedTable";
@@ -49,7 +50,11 @@ export default function StudentManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Get effective school from user data
+  const effectiveSchool = (user as any)?.effectiveSchool;
 
   // Queries
   const { data: students, isLoading: studentsLoading } = useQuery({
@@ -60,9 +65,13 @@ export default function StudentManagement() {
     queryKey: ['/api/classes'],
   });
 
-  const { data: schools, isLoading: schoolsLoading } = useQuery({
+  // For admin users, only show their effective school. For superadmin, show all schools.
+  const { data: allSchools, isLoading: schoolsLoading } = useQuery({
     queryKey: ['/api/schools'],
   });
+  
+  // Limit schools to effective school for non-superadmin users
+  const schools = effectiveSchool ? [effectiveSchool] : (allSchools || []);
 
   // Form setup
   const form = useForm<StudentFormData>({
@@ -74,9 +83,9 @@ export default function StudentManagement() {
       fullName: "",
       nickname: "",
       gender: "",
-      schoolId: "",
+      schoolId: effectiveSchool ? effectiveSchool.id.toString() : "",
       schoolCode: "",
-      academicYear: "2024-2025",
+      academicYear: "2025/2026",
       classId: "",
       status: "active",
       dateOfBirth: "",
@@ -216,7 +225,23 @@ export default function StudentManagement() {
 
   const handleAdd = () => {
     setEditingStudent(null);
-    form.reset();
+    form.reset({
+      nsp: "",
+      nis: "",
+      noAbsence: 0,
+      fullName: "",
+      nickname: "",
+      gender: "",
+      schoolId: effectiveSchool ? effectiveSchool.id.toString() : "",
+      schoolCode: "",
+      academicYear: "2025/2026",
+      classId: "",
+      status: "active",
+      dateOfBirth: "",
+      parentContact: "",
+      address: "",
+      isActive: true,
+    });
     setIsDialogOpen(true);
   };
 
@@ -737,6 +762,8 @@ export default function StudentManagement() {
       <BulkStudentAddDialog 
         isOpen={isBulkDialogOpen}
         onClose={() => setIsBulkDialogOpen(false)}
+        effectiveSchool={effectiveSchool}
+        schools={schools}
       />
     </div>
   );

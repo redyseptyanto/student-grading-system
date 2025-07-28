@@ -54,6 +54,7 @@ export interface IStorage {
   // Student operations
   getStudent(id: number): Promise<Student | undefined>;
   getStudents(): Promise<Student[]>;
+  getStudentsBySchool(schoolId: number): Promise<Student[]>;
   getStudentsByClass(classId: number): Promise<Student[]>;
   getStudentsByParent(parentId: number): Promise<Student[]>;
   getStudentsByTeacher(teacherUserId: string): Promise<Student[]>;
@@ -326,6 +327,10 @@ export class DatabaseStorage implements IStorage {
 
   async getStudents(): Promise<Student[]> {
     return await db.select().from(students);
+  }
+
+  async getStudentsBySchool(schoolId: number): Promise<Student[]> {
+    return await db.select().from(students).where(eq(students.schoolId, schoolId));
   }
 
   async getStudentsByClass(classId: number): Promise<Student[]> {

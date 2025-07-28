@@ -583,17 +583,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin dashboard stats
   app.get('/api/admin/stats', isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const students = await storage.getStudents();
-      const teachers = await storage.getTeachersWithDetails();
-      const classes = await storage.getClasses();
-      const templates = await storage.getAllReportTemplates();
+      const userId = req.user?.claims?.sub;
+      const effectiveSchool = await storage.getUserEffectiveSchool(userId);
       
-      res.json({
-        totalStudents: students.length,
-        totalTeachers: teachers.length,
-        totalClasses: classes.length,
-        totalReportTemplates: templates.length,
-      });
+      if (effectiveSchool) {
+        // Get stats for admin's effective school only
+        const students = await storage.getStudentsBySchool(effectiveSchool.id);
+        const teachers = await storage.getTeachersBySchool(effectiveSchool.id);
+        const classes = await storage.getClassesBySchool(effectiveSchool.id);
+        const templates = await storage.getAllReportTemplates();
+        
+        res.json({
+          totalStudents: students.length,
+          totalTeachers: teachers.length,
+          totalClasses: classes.length,
+          totalReportTemplates: templates.length,
+        });
+      } else {
+        // Fallback for superadmin
+        const students = await storage.getStudents();
+        const teachers = await storage.getTeachersWithDetails();
+        const classes = await storage.getClasses();
+        const templates = await storage.getAllReportTemplates();
+        
+        res.json({
+          totalStudents: students.length,
+          totalTeachers: teachers.length,
+          totalClasses: classes.length,
+          totalReportTemplates: templates.length,
+        });
+      }
     } catch (error) {
       console.error("Error fetching admin stats:", error);
       res.status(500).json({ message: "Failed to fetch admin stats" });
@@ -603,8 +622,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Student management (admin)
   app.get('/api/admin/students', isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const students = await storage.getStudentsWithDetails();
-      res.json(students);
+      const userId = req.user?.claims?.sub;
+      console.log('Fetching students for admin user:', userId);
+      
+      const effectiveSchool = await storage.getUserEffectiveSchool(userId);
+      console.log('Effective school for user:', effectiveSchool);
+      
+      if (effectiveSchool) {
+        // Get students from admin's effective school only
+        const students = await storage.getStudentsBySchool(effectiveSchool.id);
+        console.log('Found students for school:', students.length);
+        return res.json(students);
+      }
+
+      // Fallback: get all students if no effective school found (superadmin case)
+      console.log('No effective school found, getting all students');
+      const allStudents = await storage.getStudentsWithDetails();
+      res.json(allStudents);
     } catch (error) {
       console.error("Error fetching students for admin:", error);
       res.status(500).json({ message: "Failed to fetch students" });

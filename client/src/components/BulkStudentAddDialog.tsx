@@ -16,6 +16,7 @@ import { Plus, X, Users, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const bulkStudentSchema = z.object({
+  schoolId: z.string().min(1, "Please select a school"),
   classId: z.string().min(1, "Please select a class"),
   groupId: z.string().optional(),
   academicYear: z.string().min(1, "Academic year is required"),
@@ -27,9 +28,11 @@ type BulkStudentFormData = z.infer<typeof bulkStudentSchema>;
 interface BulkStudentAddDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  effectiveSchool?: any;
+  schools?: any[];
 }
 
-export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAddDialogProps) {
+export default function BulkStudentAddDialog({ isOpen, onClose, effectiveSchool, schools = [] }: BulkStudentAddDialogProps) {
   const [parsedStudents, setParsedStudents] = useState<Array<{ fullName: string; parentContact?: string; address?: string }>>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -43,9 +46,10 @@ export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAdd
   const form = useForm<BulkStudentFormData>({
     resolver: zodResolver(bulkStudentSchema),
     defaultValues: {
+      schoolId: effectiveSchool ? effectiveSchool.id.toString() : "",
       classId: "",
       groupId: "no-group",
-      academicYear: "2024-2025",
+      academicYear: "2025/2026",
       studentsText: "",
     },
   });
@@ -82,7 +86,7 @@ export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAdd
         classId: parseInt(data.classId),
         groupId: data.groupId && data.groupId !== "no-group" ? parseInt(data.groupId) : null,
         academicYear: data.academicYear,
-        schoolId: 1, // Default school ID - you may want to make this dynamic
+        schoolId: parseInt(data.schoolId),
         isActive: true,
       }));
 
@@ -155,8 +159,33 @@ export default function BulkStudentAddDialog({ isOpen, onClose }: BulkStudentAdd
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Class and Group Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* School, Class and Group Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <FormField
+                control={form.control}
+                name="schoolId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>School *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select school" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {schools.map((school: any) => (
+                          <SelectItem key={school.id} value={school.id.toString()}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="classId"
