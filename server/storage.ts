@@ -231,7 +231,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(userSchoolAssignments.schoolId, schoolId),
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
+          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -260,8 +260,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(userSchoolAssignments.schoolId, schoolId),
-          eq(userSchoolAssignments.academicYear, academicYear),
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
+          eq(userSchoolAssignments.academicYear, academicYear),  
+          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -290,8 +290,8 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
       .where(
         and(
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
-          sql`${userSchoolAssignments.assignedClasses} @> ${JSON.stringify([classId])}`,
+          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
+          sql`CAST(${userSchoolAssignments.assignedClasses} AS jsonb) @> ${JSON.stringify([classId])}`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -335,7 +335,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(userSchoolAssignments.userId, teacherUserId),
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
+          sql`'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`,
           eq(userSchoolAssignments.isActive, true)
         )
       );
@@ -542,7 +542,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
       .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
       .where(
-        sql`'teacher' = ANY(${users.roles}::text[]) OR 'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`
+        sql`'teacher' = ANY(CAST(${users.roles} AS text[])) OR 'teacher' = ANY(CAST(${userSchoolAssignments.rolesAtSchool} AS text[]))`
       );
 
     // Get groups assigned to each teacher

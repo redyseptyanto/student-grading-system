@@ -185,7 +185,7 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
       classId: classId,
       teacherId: newGroupTeacherId && newGroupTeacherId !== "no-teacher" ? parseInt(newGroupTeacherId) : null,
       description: newGroupDescription,
-      schoolId: effectiveSchool?.id || 1,
+      schoolId: teachers[0]?.schoolId || 1, // Use teacher's school ID as fallback
     };
     createInlineGroupMutation.mutate(data);
   };
@@ -756,7 +756,7 @@ export default function ClassManagement() {
       name: formData.get('name'),
       academicYear: formData.get('academicYear'),
       capacity: parseInt(formData.get('capacity') as string),
-      schoolId: effectiveSchool?.id || 1,
+      schoolId: effectiveSchool?.id || teachers[0]?.schoolId || 1,
     };
     createClassMutation.mutate(data);
   };
@@ -785,7 +785,7 @@ export default function ClassManagement() {
       teacherId: teacherId ? parseInt(teacherId as string) : null,
       description: formData.get('description'),
       maxStudents: parseInt(formData.get('maxStudents') as string),
-      schoolId: effectiveSchool?.id || 1,
+      schoolId: effectiveSchool?.id || teachers[0]?.schoolId || 1,
     };
     createGroupMutation.mutate(data);
   };
