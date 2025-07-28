@@ -9,7 +9,6 @@ import {
   insertStudentSchema,
   insertClassSchema,
   insertStudentGroupSchema,
-  insertTeacherSchema,
   insertParentSchema,
   insertReportTemplateSchema,
   insertSchoolSchema,
@@ -39,11 +38,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get additional role-specific data
       let roleData = null;
-      if (user.roles.includes('teacher')) {
-        roleData = await storage.getTeacher(userId);
-      } else if (user.roles.includes('parent')) {
+      if (user.roles.includes('parent')) {
         roleData = await storage.getParent(userId);
       }
+      // Note: Teacher data is now embedded in userSchoolAssignments, no separate teacher table
       
       res.json({ ...user, roleData, effectiveSchool });
     } catch (error) {
@@ -222,10 +220,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user.roles.includes('admin')) {
         students = await storage.getStudents();
       } else if (user.roles.includes('teacher')) {
-        const teacher = await storage.getTeacher(userId);
-        if (teacher) {
-          students = await storage.getStudentsByTeacher(teacher.id);
-        }
+        // Teacher data is now embedded in userSchoolAssignments - use user ID directly
+        students = await storage.getStudentsByTeacher(userId);
       } else if (user.roles.includes('parent')) {
         const parent = await storage.getParent(userId);
         if (parent) {
@@ -588,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/stats', isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const students = await storage.getStudents();
-      const teachers = await storage.getTeachers();
+      const teachers = await storage.getTeachersWithDetails();
       const classes = await storage.getClasses();
       const templates = await storage.getAllReportTemplates();
       

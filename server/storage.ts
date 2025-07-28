@@ -1,7 +1,5 @@
 import {
   users,
-  teachers,
-  teacherAssignments,
   parents,
   students,
   classes,
@@ -12,10 +10,6 @@ import {
   studentNarrations,
   type User,
   type UpsertUser,
-  type Teacher,
-  type InsertTeacher,
-  type TeacherAssignment,
-  type InsertTeacherAssignment,
   type Parent,
   type InsertParent,
   type Student,
@@ -43,12 +37,15 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
+  getUserSchoolAssignments(userId: string): Promise<UserSchoolAssignment[]>;
   getUserEffectiveSchool(userId: string): Promise<School | undefined>;
   
-  // Teacher operations
-  getTeacher(userId: string): Promise<Teacher | undefined>;
-  createTeacher(teacher: InsertTeacher): Promise<Teacher>;
-  getTeachersByClass(classId: number): Promise<Teacher[]>;
+  // Teacher operations (now user-based)
+  getTeachersBySchool(schoolId: number): Promise<User[]>;
+  getTeachersInSchoolByYear(schoolId: number, academicYear: string): Promise<User[]>;
+  getTeachersByClass(classId: number): Promise<User[]>;
+  getTeachersWithDetails(): Promise<any[]>;
+  assignTeacherToGroups(teacherUserId: string, groupIds: number[]): Promise<void>;
   
   // Parent operations
   getParent(userId: string): Promise<Parent | undefined>;
@@ -59,7 +56,7 @@ export interface IStorage {
   getStudents(): Promise<Student[]>;
   getStudentsByClass(classId: number): Promise<Student[]>;
   getStudentsByParent(parentId: number): Promise<Student[]>;
-  getStudentsByTeacher(teacherId: number): Promise<Student[]>;
+  getStudentsByTeacher(teacherUserId: string): Promise<Student[]>;
   createStudent(student: InsertStudent): Promise<Student>;
   createStudentsBulk(studentsData: InsertStudent[]): Promise<Student[]>;
   updateStudentGrades(studentId: number, aspect: string, grades: number[]): Promise<Student>;
@@ -86,9 +83,6 @@ export interface IStorage {
   updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student>;
   updateStudentStatus(id: number, isActive: boolean): Promise<Student>;
   deleteStudent(id: number): Promise<void>;
-  getTeachers(): Promise<Teacher[]>;
-  getTeachersWithDetails(): Promise<Teacher[]>;
-  getTeachersBySchool(schoolId: number): Promise<Teacher[]>;
   createTeacherAdmin(data: any): Promise<Teacher>;
   updateTeacherAdmin(id: number, data: Partial<Teacher>): Promise<Teacher>;
   deleteTeacherAdmin(id: number): Promise<void>;
@@ -218,33 +212,92 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Teacher operations
-  async getTeacher(userId: string): Promise<Teacher | undefined> {
-    const [teacher] = await db.select().from(teachers).where(eq(teachers.userId, userId));
-    return teacher;
+  // Teacher operations now based on users with teacher role via userSchoolAssignments
+  async getTeachersBySchool(schoolId: number): Promise<User[]> {
+    const teacherUsers = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        fullName: users.fullName,
+        profileImageUrl: users.profileImageUrl,
+        roles: users.roles,
+        isActive: users.isActive,
+        schoolId: users.schoolId,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(users)
+      .innerJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
+      .where(
+        and(
+          eq(userSchoolAssignments.schoolId, schoolId),
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          eq(userSchoolAssignments.isActive, true),
+          eq(users.isActive, true)
+        )
+      );
+    
+    return teacherUsers;
   }
 
-  async createTeacher(teacher: InsertTeacher): Promise<Teacher> {
-    const [newTeacher] = await db.insert(teachers).values(teacher).returning();
-    return newTeacher;
+  async getTeachersInSchoolByYear(schoolId: number, academicYear: string): Promise<User[]> {
+    const teacherUsers = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        fullName: users.fullName,
+        profileImageUrl: users.profileImageUrl,
+        roles: users.roles,
+        isActive: users.isActive,
+        schoolId: users.schoolId,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(users)
+      .innerJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
+      .where(
+        and(
+          eq(userSchoolAssignments.schoolId, schoolId),
+          eq(userSchoolAssignments.academicYear, academicYear),
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          eq(userSchoolAssignments.isActive, true),
+          eq(users.isActive, true)
+        )
+      );
+    
+    return teacherUsers;
   }
 
-  async getTeachersByClass(classId: number): Promise<Teacher[]> {
-    // Get teachers through assignments that include this class
+  async getTeachersByClass(classId: number): Promise<User[]> {
+    // Get teachers through userSchoolAssignments that include this class
     return await db
       .select({
-        id: teachers.id,
-        userId: teachers.userId,
-        fullName: teachers.fullName,
-        email: teachers.email,
-        phone: teachers.phone,
-        qualifications: teachers.qualifications,
-        isActive: teachers.isActive,
-        createdAt: teachers.createdAt,
-        updatedAt: teachers.updatedAt,
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        fullName: users.fullName,
+        profileImageUrl: users.profileImageUrl,
+        roles: users.roles,
+        isActive: users.isActive,
+        schoolId: users.schoolId,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
       })
-      .from(teachers)
-      .innerJoin(teacherAssignments, eq(teachers.id, teacherAssignments.teacherId))
-      .where(sql`${teacherAssignments.assignedClasses} @> ${JSON.stringify([classId])}`);
+      .from(users)
+      .innerJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
+      .where(
+        and(
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          sql`${userSchoolAssignments.assignedClasses} @> ${JSON.stringify([classId])}`,
+          eq(userSchoolAssignments.isActive, true),
+          eq(users.isActive, true)
+        )
+      );
   }
 
   // Parent operations
@@ -276,21 +329,27 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(students).where(eq(students.parentId, parentId));
   }
 
-  async getStudentsByTeacher(teacherId: number): Promise<Student[]> {
-    // Get students through teacher assignments
-    const assignment = await db
-      .select()
-      .from(teacherAssignments)
-      .where(eq(teacherAssignments.teacherId, teacherId));
+  async getStudentsByTeacher(teacherUserId: string): Promise<Student[]> {
+    // Get students through classes assigned to teacher in userSchoolAssignments
+    const assignments = await db
+      .select({ assignedClasses: userSchoolAssignments.assignedClasses })
+      .from(userSchoolAssignments)
+      .where(
+        and(
+          eq(userSchoolAssignments.userId, teacherUserId),
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          eq(userSchoolAssignments.isActive, true)
+        )
+      );
     
-    if (!assignment[0] || !assignment[0].assignedClasses || assignment[0].assignedClasses.length === 0) {
+    if (!assignments[0] || !assignments[0].assignedClasses || assignments[0].assignedClasses.length === 0) {
       return [];
     }
     
     return await db
       .select()
       .from(students)
-      .where(inArray(students.classId, assignment[0].assignedClasses));
+      .where(inArray(students.classId, assignments[0].assignedClasses));
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
@@ -453,71 +512,50 @@ export class DatabaseStorage implements IStorage {
     await db.delete(students).where(eq(students.id, id));
   }
 
-  async getTeachers(): Promise<Teacher[]> {
-    return await db.select().from(teachers);
-  }
-
-  async getTeachersBySchool(schoolId: number): Promise<Teacher[]> {
-    return await db
-      .select({
-        id: teachers.id,
-        userId: teachers.userId,
-        fullName: teachers.fullName,
-        email: teachers.email,
-        phone: teachers.phone,
-        subject: teachers.subject,
-        qualifications: teachers.qualifications,
-        isActive: teachers.isActive,
-        createdAt: teachers.createdAt,
-        updatedAt: teachers.updatedAt,
-      })
-      .from(teachers)
-      .innerJoin(userSchoolAssignments, eq(teachers.userId, userSchoolAssignments.userId))
-      .where(
-        and(
-          eq(userSchoolAssignments.schoolId, schoolId),
-          eq(userSchoolAssignments.isActive, true),
-          eq(teachers.isActive, true)
-        )
-      );
-  }
+  // Removed duplicate getTeachersBySchool - already implemented above
 
   async getTeachersWithDetails(): Promise<any[]> {
-    // Get teachers with their assignments and assigned groups
+    // Get users with teacher role and their school assignments
     const teachersWithAssignments = await db
       .select({
-        id: teachers.id,
-        userId: teachers.userId,
-        fullName: teachers.fullName,
-        email: teachers.email,
-        phone: teachers.phone,
-        qualifications: teachers.qualifications,
-        isActive: teachers.isActive,
-        createdAt: teachers.createdAt,
-        updatedAt: teachers.updatedAt,
-        // Assignment data
-        assignmentId: teacherAssignments.id,
-        schoolId: teacherAssignments.schoolId,
-        academicYear: teacherAssignments.academicYear,
-        subjects: teacherAssignments.subjects,
-        assignedClasses: teacherAssignments.assignedClasses,
-        assignmentActive: teacherAssignments.isActive,
+        id: users.id,
+        userId: users.id,
+        fullName: users.fullName,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        roles: users.roles,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        // Assignment data from userSchoolAssignments
+        assignmentId: userSchoolAssignments.id,
+        schoolId: userSchoolAssignments.schoolId,
+        academicYear: userSchoolAssignments.academicYear,
+        subjects: userSchoolAssignments.subjects,
+        assignedClasses: userSchoolAssignments.assignedClasses,
+        rolesAtSchool: userSchoolAssignments.rolesAtSchool,
+        assignmentActive: userSchoolAssignments.isActive,
         schoolName: schools.name,
         schoolCode: schools.schoolCode,
       })
-      .from(teachers)
-      .leftJoin(teacherAssignments, eq(teachers.id, teacherAssignments.teacherId))
-      .leftJoin(schools, eq(teacherAssignments.schoolId, schools.id));
+      .from(users)
+      .leftJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
+      .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
+      .where(
+        sql`'teacher' = ANY(${users.roles}) OR 'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`
+      );
 
-    // Get groups assigned to each teacher assignment
+    // Get groups assigned to each teacher
     const teacherGroups = await db
       .select({
-        teacherAssignmentId: studentGroups.teacherAssignmentId,
+        teacherUserId: studentGroups.teacherUserId,
         groupId: studentGroups.id,
         groupName: studentGroups.name,
       })
       .from(studentGroups)
-      .where(sql`${studentGroups.teacherAssignmentId} IS NOT NULL`);
+      .where(sql`${studentGroups.teacherUserId} IS NOT NULL`);
     
     // Group by teacher and merge assignments with groups
     const teacherMap = new Map();
@@ -530,12 +568,10 @@ export class DatabaseStorage implements IStorage {
         );
         const currentAssignment = currentAssignments[0];
         
-        // Get assigned groups for current assignment
-        const assignedGroups = currentAssignment?.assignmentId 
-          ? teacherGroups
-              .filter(g => g.teacherAssignmentId === currentAssignment.assignmentId)
-              .map(g => g.groupId)
-          : [];
+        // Get assigned groups for current teacher
+        const assignedGroups = teacherGroups
+          .filter(g => g.teacherUserId === row.id)
+          .map(g => g.groupId);
         
         teacherMap.set(row.id, {
           id: row.id,
@@ -564,9 +600,9 @@ export class DatabaseStorage implements IStorage {
         const teacher = teacherMap.get(row.id);
         const existingAssignment = teacher.assignments.find(a => a.id === row.assignmentId);
         if (!existingAssignment) {
-          // Get assigned groups for this assignment
+          // Get assigned groups for this teacher
           const assignmentGroups = teacherGroups
-            .filter(g => g.teacherAssignmentId === row.assignmentId)
+            .filter(g => g.teacherUserId === row.id)
             .map(g => g.groupId);
             
           teacher.assignments.push({
@@ -587,116 +623,19 @@ export class DatabaseStorage implements IStorage {
     return Array.from(teacherMap.values());
   }
 
-  async getTeachersBySchool(schoolId: number): Promise<any[]> {
-    // Get teachers with their current assignments for the specified school
-    const teachersWithAssignments = await db
-      .select({
-        id: teachers.id,
-        userId: teachers.userId,
-        fullName: teachers.fullName,
-        email: teachers.email,
-        phone: teachers.phone,
-        qualifications: teachers.qualifications,
-        isActive: teachers.isActive,
-        createdAt: teachers.createdAt,
-        updatedAt: teachers.updatedAt,
-        // Assignment data
-        assignmentId: teacherAssignments.id,
-        schoolId: teacherAssignments.schoolId,
-        academicYear: teacherAssignments.academicYear,
-        subjects: teacherAssignments.subjects,
-        assignedClasses: teacherAssignments.assignedClasses,
-        assignmentActive: teacherAssignments.isActive,
-      })
-      .from(teachers)
-      .leftJoin(teacherAssignments, and(
-        eq(teachers.id, teacherAssignments.teacherId),
-        eq(teacherAssignments.schoolId, schoolId),
-        eq(teacherAssignments.academicYear, '2025/2026') // Current academic year
-      ))
-      .where(eq(teacherAssignments.schoolId, schoolId));
-
-    // Get groups assigned to each teacher assignment
-    const teacherGroups = await db
-      .select({
-        teacherAssignmentId: studentGroups.teacherAssignmentId,
-        groupId: studentGroups.id,
-        groupName: studentGroups.name,
-      })
-      .from(studentGroups)
-      .where(sql`${studentGroups.teacherAssignmentId} IS NOT NULL`);
-    
-    // Format the result
-    return teachersWithAssignments.map(row => {
-      // Get assigned groups for this assignment
-      const assignedGroups = row.assignmentId 
-        ? teacherGroups
-            .filter(g => g.teacherAssignmentId === row.assignmentId)
-            .map(g => g.groupId)
-        : [];
-      
-      return {
-        id: row.id,
-        userId: row.userId,
-        fullName: row.fullName,
-        email: row.email,
-        phone: row.phone,
-        qualifications: row.qualifications,
-        isActive: row.isActive,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        subjects: row.subjects || [],
-        assignedClasses: row.assignedClasses || [],
-        assignedGroups: assignedGroups,
-        schoolId: row.schoolId,
-        academicYear: row.academicYear || '2025/2026',
-      };
-    });
-  }
-
-  async createTeacherAdmin(data: InsertTeacher): Promise<Teacher> {
-    const [newTeacher] = await db.insert(teachers).values(data).returning();
-    return newTeacher;
-  }
-
-  async updateTeacherAdmin(id: number, data: Partial<Teacher>): Promise<Teacher> {
-    const [updatedTeacher] = await db
-      .update(teachers)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(teachers.id, id))
-      .returning();
-    return updatedTeacher;
-  }
-
-  async deleteTeacherAdmin(id: number): Promise<void> {
-    await db.delete(teachers).where(eq(teachers.id, id));
-  }
-
-  async assignTeacherToGroups(teacherId: number, groupIds: number[]): Promise<void> {
-    // First, find the current teacher assignment for 2025/2026
-    const [currentAssignment] = await db
-      .select()
-      .from(teacherAssignments)
-      .where(
-        and(
-          eq(teacherAssignments.teacherId, teacherId),
-          eq(teacherAssignments.academicYear, '2025/2026')
-        )
-      );
-
-    // Remove teacher assignment from all current groups
+  // New method to assign teacher users to groups using direct user ID reference
+  async assignTeacherToGroups(teacherUserId: string, groupIds: number[]): Promise<void> {
+    // Remove teacher assignment from all current groups for this teacher
     await db
       .update(studentGroups)
-      .set({ teacherAssignmentId: null })
-      .where(
-        currentAssignment ? eq(studentGroups.teacherAssignmentId, currentAssignment.id) : sql`false`
-      );
+      .set({ teacherUserId: null })
+      .where(eq(studentGroups.teacherUserId, teacherUserId));
 
-    // Assign teacher to new groups if assignment exists and groups provided
-    if (currentAssignment && groupIds.length > 0) {
+    // Assign teacher to new groups if groups provided
+    if (groupIds.length > 0) {
       await db
         .update(studentGroups)
-        .set({ teacherAssignmentId: currentAssignment.id })
+        .set({ teacherUserId: teacherUserId })
         .where(inArray(studentGroups.id, groupIds));
     }
   }
