@@ -632,19 +632,23 @@ export default function ClassManagement() {
   });
 
   const { data: teachersData, isLoading: teachersLoading } = useQuery<Teacher[]>({
-    queryKey: ['/api/admin/teachers', effectiveSchool?.id],
-    queryFn: () => {
-      const schoolId = effectiveSchool?.id;
-      return apiRequest('GET', schoolId ? `/api/admin/teachers?schoolId=${schoolId}` : '/api/admin/teachers');
-    },
-    enabled: true, // Always enable - API will handle school filtering
+    queryKey: ['/api/admin/teachers'],
+    queryFn: () => apiRequest('GET', '/api/admin/teachers'),
+    enabled: true,
   });
   
   // Ensure teachers is always an array
   const teachers = Array.isArray(teachersData) ? teachersData : [];
   
   // Debug log teachers data
-  console.log('ClassManagement teachers data:', { teachersData, teachers, teachersLoading, effectiveSchool });
+  console.log('ClassManagement teachers data:', { 
+    teachersData, 
+    teachers, 
+    teachersLoading, 
+    effectiveSchool,
+    teachersDataType: typeof teachersData,
+    isTeachersArray: Array.isArray(teachersData)
+  });
 
   // For non-superadmin users, use their effective school instead of fetching all schools
   const schools = effectiveSchool ? [effectiveSchool] : [];
