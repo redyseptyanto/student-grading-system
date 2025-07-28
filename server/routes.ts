@@ -245,6 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       console.log(`Grade Input: Found ${students.length} students for class ${classId} in ${academicYear} at school ${schoolId}`);
+      console.log('Grade Input API response data:', students);
       return res.json(students);
     } catch (error) {
       console.error("Error fetching students for Grade Input:", error);
