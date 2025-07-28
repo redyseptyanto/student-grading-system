@@ -448,6 +448,29 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(classes).where(eq(classes.schoolId, schoolId));
   }
 
+  async getClassesWithStudentCountBySchool(schoolId: number): Promise<(Class & { studentCount: number })[]> {
+    const classesWithCounts = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        schoolId: classes.schoolId,
+        academicYear: classes.academicYear,
+        capacity: classes.capacity,
+        description: classes.description,
+        isActive: classes.isActive,
+        createdAt: classes.createdAt,
+        updatedAt: classes.updatedAt,
+        studentCount: sql<number>`CAST(COUNT(${students.id}) AS INTEGER)`,
+      })
+      .from(classes)
+      .leftJoin(students, and(eq(students.classId, classes.id), eq(students.isActive, true)))
+      .where(eq(classes.schoolId, schoolId))
+      .groupBy(classes.id)
+      .orderBy(classes.name);
+
+    return classesWithCounts;
+  }
+
   async createClass(classData: InsertClass): Promise<Class> {
     const [newClass] = await db.insert(classes).values(classData).returning();
     return newClass;

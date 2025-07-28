@@ -294,8 +294,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Regular admin can only see classes from their effective school
         const effectiveSchool = await storage.getUserEffectiveSchool(userId);
         if (effectiveSchool) {
-          classes = await storage.getClassesBySchool(effectiveSchool.id);
-          // Note: For now, student count is only for all classes; school-specific can be added later
+          classes = withStudentCount ? 
+            await storage.getClassesWithStudentCountBySchool(effectiveSchool.id) : 
+            await storage.getClassesBySchool(effectiveSchool.id);
         } else {
           classes = []; // No effective school found
         }
@@ -303,7 +304,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Other roles get limited access based on their assignments
         const effectiveSchool = await storage.getUserEffectiveSchool(userId);
         if (effectiveSchool) {
-          classes = await storage.getClassesBySchool(effectiveSchool.id);
+          classes = withStudentCount ? 
+            await storage.getClassesWithStudentCountBySchool(effectiveSchool.id) : 
+            await storage.getClassesBySchool(effectiveSchool.id);
         } else {
           classes = [];
         }

@@ -432,14 +432,20 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteInlineGroupMutation.mutate(group.id)}
+                        <ConfirmDialog
+                          title="Delete Student Group"
+                          description={`Are you sure you want to delete "${group.name}"? This action cannot be undone and will remove all students from this group.`}
+                          onConfirm={() => deleteInlineGroupMutation.mutate(group.id)}
                           disabled={deleteInlineGroupMutation.isPending}
                         >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </ConfirmDialog>
                       </div>
                     </div>
                   )}
@@ -507,37 +513,87 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
                 </div>
               </div>
 
-              {/* Students List */}
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-700 mb-2">
-                  Students in {className} ({Array.isArray(classStudents) ? classStudents.length : 0} total)
-                </div>
-                <div className="border rounded-lg">
-                  <div className="divide-y">
-                    {Array.isArray(classStudents) && classStudents
-                      .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                      .map((student: Student) => (
-                      <div
-                        key={student.id}
-                        className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
-                          selectedStudents.has(student.id) ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => handleStudentToggle(student.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={selectedStudents.has(student.id)}
-                            onCheckedChange={() => handleStudentToggle(student.id)}
-                          />
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{student.fullName}</div>
-                            <div className="text-xs text-gray-500">
-                              Group: {getGroupName(student.groupId)} • ID: {student.id}
+              {/* Students List - Two Columns */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Unassigned Students */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700 mb-2">
+                    Unassigned Students ({Array.isArray(classStudents) ? classStudents.filter(s => !s.groupId).length : 0})
+                  </div>
+                  <div className="border rounded-lg min-h-[200px]">
+                    <div className="divide-y">
+                      {Array.isArray(classStudents) && classStudents
+                        .filter((student: Student) => !student.groupId)
+                        .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                        .map((student: Student) => (
+                        <div
+                          key={student.id}
+                          className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
+                            selectedStudents.has(student.id) ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => handleStudentToggle(student.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedStudents.has(student.id)}
+                              onCheckedChange={() => handleStudentToggle(student.id)}
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{student.fullName}</div>
+                              <div className="text-xs text-gray-500">ID: {student.id}</div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                      {Array.isArray(classStudents) && classStudents.filter(s => !s.groupId).length === 0 && (
+                        <div className="p-6 text-center text-gray-500">
+                          <Users className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">All students are assigned to groups</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assigned Students */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700 mb-2">
+                    Assigned Students ({Array.isArray(classStudents) ? classStudents.filter(s => s.groupId).length : 0})
+                  </div>
+                  <div className="border rounded-lg min-h-[200px]">
+                    <div className="divide-y">
+                      {Array.isArray(classStudents) && classStudents
+                        .filter((student: Student) => student.groupId)
+                        .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                        .map((student: Student) => (
+                        <div
+                          key={student.id}
+                          className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
+                            selectedStudents.has(student.id) ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => handleStudentToggle(student.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedStudents.has(student.id)}
+                              onCheckedChange={() => handleStudentToggle(student.id)}
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{student.fullName}</div>
+                              <div className="text-xs text-gray-500">
+                                Group: {getGroupName(student.groupId || undefined)} • ID: {student.id}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {Array.isArray(classStudents) && classStudents.filter(s => s.groupId).length === 0 && (
+                        <div className="p-6 text-center text-gray-500">
+                          <Users className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No students assigned to groups yet</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -640,7 +696,7 @@ export default function ClassManagement() {
     },
     enabled: true,
     staleTime: 0, // Always fetch fresh data
-    cacheTime: 0, // Don't cache
+    gcTime: 0, // Don't cache (formerly cacheTime)
   });
   
   // Ensure teachers is always an array
@@ -795,7 +851,7 @@ export default function ClassManagement() {
       name: formData.get('name'),
       academicYear: formData.get('academicYear'),
       capacity: parseInt(formData.get('capacity') as string),
-      schoolId: effectiveSchool?.id || teachers[0]?.schoolId || 1,
+      schoolId: effectiveSchool?.id || 1,
     };
     createClassMutation.mutate(data);
   };
@@ -824,7 +880,7 @@ export default function ClassManagement() {
       teacherId: teacherId ? parseInt(teacherId as string) : null,
       description: formData.get('description'),
       maxStudents: parseInt(formData.get('maxStudents') as string),
-      schoolId: effectiveSchool?.id || teachers[0]?.schoolId || 1,
+      schoolId: effectiveSchool?.id || 1,
     };
     createGroupMutation.mutate(data);
   };
@@ -913,28 +969,15 @@ export default function ClassManagement() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="classes" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="classes" className="flex items-center gap-2">
-            <School className="h-4 w-4" />
-            Classes
-          </TabsTrigger>
-          <TabsTrigger value="groups" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Student Groups
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="classes">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Class Management</CardTitle>
-                  <CardDescription>
-                    Create and manage classes for your school ({filteredClasses.length} of {classes.length} classes)
-                  </CardDescription>
-                </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Class Management</CardTitle>
+              <CardDescription>
+                Create and manage classes for your school ({filteredClasses.length} of {classes.length} classes)
+              </CardDescription>
+            </div>
                 <Dialog open={isCreateClassOpen} onOpenChange={setIsCreateClassOpen}>
                   <DialogTrigger asChild>
                     <Button>
@@ -997,10 +1040,10 @@ export default function ClassManagement() {
                       </div>
                     </form>
                   </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
               <FilterBar
                 searchTerm={classSearchTerm}
                 onSearchChange={setClassSearchTerm}
@@ -1096,221 +1139,6 @@ export default function ClassManagement() {
               />
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="groups">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Student Groups</CardTitle>
-                  <CardDescription>
-                    Manage student groups within classes ({filteredGroups.length} of {studentGroups.length} groups)
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={selectedClassId?.toString() || "all"}
-                    onValueChange={(value) => 
-                      setSelectedClassId(value === "all" ? null : parseInt(value))
-                    }
-                  >
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Filter by class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Classes</SelectItem>
-                      {(classes || []).map((classData: Class) => (
-                        <SelectItem key={classData.id} value={classData.id.toString()}>
-                          {classData.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Group
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create Student Group</DialogTitle>
-                        <DialogDescription>
-                          Create a new student group within a class
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={handleCreateGroup} className="space-y-4">
-                        <div>
-                          <Label htmlFor="groupName">Group Name</Label>
-                          <Input
-                            id="groupName"
-                            name="name"
-                            placeholder="e.g., Reading Group A"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="classId">Class</Label>
-                          <Select name="classId" required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a class" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(classes || []).map((classData: Class) => (
-                                <SelectItem key={classData.id} value={classData.id.toString()}>
-                                  {classData.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="teacherId">Assigned Teacher</Label>
-                          <Select name="teacherId">
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a teacher (optional)" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">No teacher assigned</SelectItem>
-                              {teachers.map((teacher: Teacher) => (
-                                <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                                  {teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="description">Description</Label>
-                          <Textarea
-                            id="description"
-                            name="description"
-                            placeholder="Brief description of the group..."
-                          />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsCreateGroupOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            type="submit"
-                            disabled={createGroupMutation.isPending}
-                          >
-                            {createGroupMutation.isPending ? 'Creating...' : 'Create Group'}
-                          </Button>
-                        </div>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <FilterBar
-                searchTerm={groupSearchTerm}
-                onSearchChange={setGroupSearchTerm}
-                searchPlaceholder="Search groups by name..."
-                filters={[
-                  {
-                    id: "school",
-                    label: "School",
-                    value: groupSchoolFilter,
-                    onChange: setGroupSchoolFilter,
-                    options: [
-                      { value: "ALL_SCHOOLS", label: "All Schools" },
-                      ...(schools.map((school: School) => ({
-                        value: school.id.toString(),
-                        label: school.name
-                      })))
-                    ],
-                    placeholder: "All Schools",
-                    icon: <School className="h-4 w-4 text-gray-500" />
-                  },
-                  {
-                    id: "class",
-                    label: "Class",
-                    value: groupClassFilter,
-                    onChange: setGroupClassFilter,
-                    options: [
-                      { value: "ALL_CLASSES", label: "All Classes" },
-                      ...((classes || []).map((classData: Class) => ({
-                        value: classData.id.toString(),
-                        label: classData.name
-                      })))
-                    ],
-                    placeholder: "All Classes",
-                    icon: <BookOpen className="h-4 w-4 text-gray-500" />
-                  }
-                ]}
-                onClearFilters={clearGroupFilters}
-                hasActiveFilters={hasActiveGroupFilters}
-                resultCount={filteredGroups.length}
-                totalCount={studentGroups.length}
-                itemName="groups"
-              />
-
-              <PaginatedTable
-                data={filteredGroups}
-                loading={groupsLoading}
-                itemsPerPage={10}
-                emptyMessage="No student groups found"
-                columns={[
-                  { key: "name", label: "Group Name", render: (group) => <span className="font-medium">{group.name}</span> },
-                  { key: "school", label: "School", render: (group) => getSchoolName(group.schoolId) },
-                  { key: "class", label: "Class", render: (group) => getClassName(group.classId) },
-                  { key: "teacher", label: "Assigned Teacher", render: (group) => getTeacherName(group.teacherId) },
-                  { key: "maxStudents", label: "Max Students" },
-                  { 
-                    key: "status", 
-                    label: "Status", 
-                    render: (group) => (
-                      <Badge variant={group.isActive ? "default" : "secondary"}>
-                        {group.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    )
-                  },
-                  { 
-                    key: "actions", 
-                    label: "Actions", 
-                    render: (group) => (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingGroup(group)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <ConfirmDialog
-                          title="Delete Student Group"
-                          description={`Are you sure you want to delete "${group.name}"? This action cannot be undone.`}
-                          onConfirm={() => deleteGroupMutation.mutate(group.id)}
-                          disabled={deleteGroupMutation.isPending}
-                        >
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </ConfirmDialog>
-                      </div>
-                    )
-                  }
-                ]}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
 
       {/* Edit Class Dialog */}
       {editingClass && (
