@@ -412,7 +412,7 @@ export default function StudentManagement() {
               { key: "gender", label: "Gender", render: (student) => student.gender || "-" },
               { key: "school", label: "School", render: (student) => schools?.find((s: any) => s.id === student.schoolId)?.schoolCode || "-" },
               { key: "class", label: "Class", render: (student) => classes?.find((c: any) => c.id === student.classId)?.name || 'Unassigned' },
-              { key: "group", label: "Group", render: (student) => student.groupId ? `Group ${student.groupId}` : "-" },
+              { key: "group", label: "Group", render: (student) => student.groupName || "-" },
               { key: "academicYear", label: "Academic Year", render: (student) => student.academicYear || '2025/2026' },
               { key: "noAbsence", label: "No Absence", render: (student) => student.noAbsence || 0 },
               { 

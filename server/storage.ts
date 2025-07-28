@@ -847,7 +847,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(studentEnrollments, and(
         eq(studentEnrollments.classId, classes.id), 
         eq(studentEnrollments.isActive, true),
-        eq(studentEnrollments.academicYear, classes.academicYear)
+        eq(studentEnrollments.academicYear, '2025/2026')  // Fixed: use current academic year instead of classes.academicYear
       ))
       .groupBy(classes.id)
       .orderBy(classes.name);
@@ -877,7 +877,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(studentEnrollments, and(
         eq(studentEnrollments.classId, classes.id), 
         eq(studentEnrollments.isActive, true),
-        eq(studentEnrollments.academicYear, classes.academicYear)
+        eq(studentEnrollments.academicYear, '2025/2026')  // Fixed: use current academic year instead of classes.academicYear
       ))
       .where(eq(classes.schoolId, schoolId))
       .groupBy(classes.id)
