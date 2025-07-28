@@ -74,10 +74,13 @@ function ClassGroupManager({ classId, className, teachers, onGroupChange }: Clas
   const [assignToGroupId, setAssignToGroupId] = useState<string>("no-group");
   const { toast } = useToast();
 
-  // Ensure teachers is available
-  if (!teachers || !Array.isArray(teachers)) {
-    console.warn('ClassGroupManager: teachers prop is not an array:', teachers);
-  }
+  // Debug teachers data
+  console.log('ClassGroupManager received:', { 
+    teachers, 
+    teachersLength: teachers?.length, 
+    isArray: Array.isArray(teachers),
+    firstTeacher: teachers?.[0]
+  });
 
   // Get all groups and filter by class on frontend for now
   const { data: allGroups, isLoading: groupsLoading } = useQuery<StudentGroup[]>({
@@ -1355,16 +1358,23 @@ export default function ClassManagement() {
               </TabsContent>
               
               <TabsContent value="manage-groups" className="space-y-4">
-                {/* Debug teachers before passing to ClassGroupManager */}
-                {console.log('About to pass teachers to ClassGroupManager:', teachers, 'length:', teachers.length)}
-                <ClassGroupManager 
-                  classId={editingClass.id}
-                  className={editingClass.name}
-                  teachers={teachers}
-                  onGroupChange={() => {
-                    queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
-                  }}
-                />
+                {teachers.length > 0 ? (
+                  <ClassGroupManager 
+                    classId={editingClass.id}
+                    className={editingClass.name}
+                    teachers={teachers}
+                    onGroupChange={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/student-groups'] });
+                    }}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Loading teachers data...</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Teachers found: {teachers.length} | Loading: {teachersLoading ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </DialogContent>
