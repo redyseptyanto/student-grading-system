@@ -242,8 +242,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Verify teacher has access to this class/school
         if (user.roles.includes('teacher')) {
-          const effectiveSchool = await storage.getUserEffectiveSchool(userId);
-          if (effectiveSchool && effectiveSchool.id.toString() !== schoolId) {
+          const teacherSchools = await storage.getTeacherAssignedSchools(userId);
+          const hasAccessToSchool = teacherSchools.some(school => school.id.toString() === schoolId);
+          if (!hasAccessToSchool) {
             return res.status(403).json({ message: "Access denied to this school" });
           }
         }
