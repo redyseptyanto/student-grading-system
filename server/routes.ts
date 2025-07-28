@@ -237,34 +237,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Grade Input request - filtering by:', { academicYear, classId, schoolId });
       
-      // Verify teacher has access to this class/school
-      if (user.roles.includes('teacher')) {
-        const teacherSchools = await storage.getTeacherAssignedSchools(userId);
-        const hasAccessToSchool = teacherSchools.some(school => school.id.toString() === schoolId);
-        if (!hasAccessToSchool) {
-          return res.status(403).json({ message: "Access denied to this school" });
-        }
-        
-        // For teachers, filter by group assignments instead of all class students
-        const students = await storage.getStudentsByTeacherGroups(
-          userId,
-          parseInt(classId), 
-          academicYear, 
-          parseInt(schoolId)
-        );
-        
-        console.log(`Found ${students.length} students for teacher ${userId} in class ${classId} at school ${schoolId}`);
-        return res.json(students);
-      }
-      
-      // For non-teachers (admin/superadmin), show all students in class
+      // SIMPLIFIED: Just show all students in the class like Admin Dashboard
       const students = await storage.getStudentsByClassWithDetails(
         parseInt(classId), 
         academicYear, 
         parseInt(schoolId)
       );
       
-      console.log(`Found ${students.length} students for class ${classId} in ${academicYear}`);
+      console.log(`Grade Input: Found ${students.length} students for class ${classId} in ${academicYear} at school ${schoolId}`);
       return res.json(students);
     } catch (error) {
       console.error("Error fetching students for Grade Input:", error);
