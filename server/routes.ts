@@ -99,6 +99,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Teacher input system routes
+  // Batch attendance and health data update
+  app.post('/api/attendance/batch', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('teacher')) {
+        return res.status(403).json({ message: "Only teachers can update attendance data" });
+      }
+
+      const { attendanceData, academicYear, term } = req.body;
+      
+      if (!attendanceData || !academicYear || !term) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const results = await storage.updateStudentAttendanceBatch(attendanceData);
+      res.json({ message: "Attendance data updated successfully", results });
+    } catch (error) {
+      console.error("Error updating attendance data:", error);
+      res.status(500).json({ message: "Failed to update attendance data" });
+    }
+  });
+
+  // Save student narration
+  app.post('/api/narration', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('teacher')) {
+        return res.status(403).json({ message: "Only teachers can save narrations" });
+      }
+
+      const { studentId, label, content, academicYear, term } = req.body;
+      
+      if (!studentId || !label || !content || !academicYear || !term) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const narration = await storage.saveStudentNarration({
+        studentId,
+        teacherId: userId,
+        label,
+        content,
+        academicYear,
+        term,
+      });
+
+      res.json(narration);
+    } catch (error) {
+      console.error("Error saving narration:", error);
+      res.status(500).json({ message: "Failed to save narration" });
+    }
+  });
+
+  // Batch grade update
+  app.post('/api/grades/batch', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.roles.includes('teacher')) {
+        return res.status(403).json({ message: "Only teachers can update grades" });
+      }
+
+      const { aspect, gradeData, academicYear, term } = req.body;
+      
+      if (!aspect || !gradeData || !academicYear || !term) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const results = await storage.updateStudentGradesBatch(aspect, gradeData);
+      res.json({ message: "Grades updated successfully", results });
+    } catch (error) {
+      console.error("Error updating grades:", error);
+      res.status(500).json({ message: "Failed to update grades" });
+    }
+  });
+
   // Grade management routes
   app.post('/api/grades', isAuthenticated, async (req: any, res) => {
     try {

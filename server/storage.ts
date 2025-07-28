@@ -9,6 +9,7 @@ import {
   reportTemplates,
   schools,
   userSchoolAssignments,
+  studentNarrations,
   type User,
   type UpsertUser,
   type Teacher,
@@ -30,6 +31,8 @@ import {
   type UserSchoolAssignment,
   type InsertUserSchoolAssignment,
   type GradeInput,
+  type StudentNarration,
+  type InsertStudentNarration,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, sql } from "drizzle-orm";
@@ -114,6 +117,11 @@ export interface IStorage {
     totalStudents: number;
     totalTeachers: number;
   }>;
+
+  // Teacher input system methods
+  updateStudentAttendanceBatch(attendanceData: Record<number, any>): Promise<any[]>;
+  saveStudentNarration(narrationData: any): Promise<any>;
+  updateStudentGradesBatch(aspect: string, gradeData: Record<number, string>): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -818,6 +826,74 @@ export class DatabaseStorage implements IStorage {
       totalStudents: Number(studentsCount.count),
       totalTeachers: Number(teachersCount.count),
     };
+  }
+
+  // Teacher input system methods
+  async updateStudentAttendanceBatch(attendanceData: Record<number, any>): Promise<any[]> {
+    const results = [];
+    
+    for (const [studentId, data] of Object.entries(attendanceData)) {
+      const [student] = await db
+        .update(students)
+        .set({
+          sakit: data.sakit || 0,
+          izin: data.izin || 0,
+          alpa: data.alpa || 0,
+          tinggiBadan: data.tinggiBadan?.toString() || "0",
+          beratBadan: data.beratBadan?.toString() || "0",
+          updatedAt: new Date(),
+        })
+        .where(eq(students.id, parseInt(studentId)))
+        .returning();
+      
+      results.push(student);
+    }
+    
+    return results;
+  }
+
+  async saveStudentNarration(narrationData: InsertStudentNarration): Promise<StudentNarration> {
+    const [narration] = await db
+      .insert(studentNarrations)
+      .values(narrationData)
+      .returning();
+
+    return narration;
+  }
+
+  async updateStudentGradesBatch(aspect: string, gradeData: Record<number, string>): Promise<any[]> {
+    const results = [];
+    
+    for (const [studentId, gradeArrayString] of Object.entries(gradeData)) {
+      // Parse grade array from string like "2,2,3,4,5,6,5"
+      const gradeArray = gradeArrayString.split(',').map(g => parseInt(g.trim())).filter(g => !isNaN(g));
+      
+      if (gradeArray.length === 0) continue;
+      
+      // Get current student grades
+      const [currentStudent] = await db
+        .select()
+        .from(students)
+        .where(eq(students.id, parseInt(studentId)));
+      
+      if (currentStudent) {
+        const currentGrades = currentStudent.grades || {};
+        currentGrades[aspect] = gradeArray;
+        
+        const [student] = await db
+          .update(students)
+          .set({
+            grades: currentGrades,
+            updatedAt: new Date(),
+          })
+          .where(eq(students.id, parseInt(studentId)))
+          .returning();
+        
+        results.push(student);
+      }
+    }
+    
+    return results;
   }
 }
 

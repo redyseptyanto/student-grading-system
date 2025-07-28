@@ -8,6 +8,8 @@ import {
   serial,
   integer,
   boolean,
+  numeric,
+  date,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -149,6 +151,15 @@ export const students = pgTable("students", {
   groupId: integer("group_id").references(() => studentGroups.id, { onDelete: "set null" }), // Group - will be derived from groupId
   status: varchar("status").default("active"), // Status - varchar (active/inactive/graduated/transferred)
   
+  // Attendance data
+  sakit: integer("sakit").default(0),
+  izin: integer("izin").default(0),
+  alpa: integer("alpa").default(0),
+  
+  // Health data
+  tinggiBadan: numeric("tinggi_badan").default("0"),
+  beratBadan: numeric("berat_badan").default("0"),
+  
   // Existing fields
   parentId: integer("parent_id").references(() => parents.id),
   schoolId: integer("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
@@ -160,6 +171,21 @@ export const students = pgTable("students", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Student narrations table - for storing teacher narrations per student
+export const studentNarrations = pgTable("student_narrations", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+  teacherId: varchar("teacher_id").notNull().references(() => users.id),
+  academicYear: varchar("academic_year").notNull(),
+  term: varchar("term").notNull(),
+  label: varchar("label").notNull(), // Kemampuan Akademik, Sosial, etc.
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_student_narrations_student_year_term").on(table.studentId, table.academicYear, table.term),
+]);
 
 // Report templates table - with school reference
 export const reportTemplates = pgTable("report_templates", {
@@ -239,7 +265,7 @@ export const parentsRelations = relations(parents, ({ one, many }) => ({
   children: many(students),
 }));
 
-export const studentsRelations = relations(students, ({ one }) => ({
+export const studentsRelations = relations(students, ({ one, many }) => ({
   class: one(classes, {
     fields: [students.classId],
     references: [classes.id],
@@ -255,6 +281,18 @@ export const studentsRelations = relations(students, ({ one }) => ({
   school: one(schools, {
     fields: [students.schoolId],
     references: [schools.id],
+  }),
+  narrations: many(studentNarrations),
+}));
+
+export const studentNarrationsRelations = relations(studentNarrations, ({ one }) => ({
+  student: one(students, {
+    fields: [studentNarrations.studentId],
+    references: [students.id],
+  }),
+  teacher: one(users, {
+    fields: [studentNarrations.teacherId],
+    references: [users.id],
   }),
 }));
 
@@ -405,6 +443,8 @@ export type InsertUserSchoolAssignment = z.infer<typeof insertUserSchoolAssignme
 export type UserSchoolAssignment = typeof userSchoolAssignments.$inferSelect;
 export type GradeInput = z.infer<typeof gradeInputSchema>;
 export type RadarChartConfig = z.infer<typeof radarChartConfigSchema>;
+export type StudentNarration = typeof studentNarrations.$inferSelect;
+export type InsertStudentNarration = typeof studentNarrations.$inferInsert;
 
 // Assessment aspects (can be configured)
 export const ASSESSMENT_ASPECTS = [

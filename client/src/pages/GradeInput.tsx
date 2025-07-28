@@ -1,77 +1,215 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
-import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, X, Save } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ChevronLeft, ChevronRight, Save, Users, BookOpen, FileText } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { ASSESSMENT_ASPECTS } from "@shared/schema";
 
-const gradeInputSchema = z.object({
-  studentId: z.string().min(1, "Please select a student"),
-  aspect: z.string().min(1, "Please select an assessment aspect"),
-  grades: z.array(z.number().min(1).max(6)).min(1, "At least one grade is required").max(7, "Maximum 7 grades allowed"),
-});
+interface Student {
+  id: number;
+  fullName: string;
+  className: string;
+  groupName: string;
+  sakit?: number;
+  izin?: number;
+  alpa?: number;
+  tinggiBadan?: number;
+  beratBadan?: number;
+}
 
-type GradeInputFormData = z.infer<typeof gradeInputSchema>;
+interface AttendanceData {
+  [studentId: number]: {
+    sakit: number;
+    izin: number;
+    alpa: number;
+    tinggiBadan: number;
+    beratBadan: number;
+  };
+}
+
+interface NarrationData {
+  studentId: number;
+  label: string;
+  content: string;
+}
+
+interface GradeData {
+  [studentId: number]: string; // Grade array as string like "2,2,3,4,5,6,5"
+}
+
+const NARRATION_LABELS = [
+  "Kemampuan Akademik",
+  "Kemampuan Sosial",
+  "Kemampuan Motorik",
+  "Kreativitas",
+  "Kedisiplinan",
+  "Kemandirian",
+  "Komunikasi",
+  "Kepemimpinan"
+];
+
+const TERMS = ["Term 1", "Term 2", "Term 3", "Term 4"];
+const ACADEMIC_YEARS = ["2025/2026", "2024/2025", "2023/2024"];
 
 export default function GradeInput() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [gradeInputs, setGradeInputs] = useState<string[]>([""]);
 
-  // Redirect to home if not authenticated or not a teacher
+  // Filter states
+  const [selectedYear, setSelectedYear] = useState("2025/2026");
+  const [selectedTerm, setSelectedTerm] = useState("Term 1");
+  const [selectedSchool, setSelectedSchool] = useState("");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [activeTab, setActiveTab] = useState("attendance");
+
+  // Data states
+  const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
+  const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+  const [narrationLabel, setNarrationLabel] = useState("");
+  const [narrationContent, setNarrationContent] = useState("");
+  const [selectedAspect, setSelectedAspect] = useState("");
+  const [gradeData, setGradeData] = useState<GradeData>({});
+
+  // Get teacher's schools and classes
+  const { data: teacherData } = useQuery({
+    queryKey: ["/api/auth/user"],
+    enabled: !!user,
+  });
+
+  const { data: schools = [] } = useQuery({
+    queryKey: ["/api/schools"],
+    enabled: !!user,
+  });
+
+  const { data: classes = [] } = useQuery({
+    queryKey: ["/api/classes"],
+    enabled: !!user,
+  });
+
+  // Get students based on filters
+  const { data: students = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ["/api/students", selectedYear, selectedClass, selectedSchool],
+    enabled: !!selectedYear && !!selectedClass && !!selectedSchool,
+  });
+
+  // Set default school and class when teacher data loads
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !(user as any)?.roles?.includes("teacher"))) {
+    if (teacherData?.effectiveSchool && !selectedSchool) {
+      setSelectedSchool(teacherData.effectiveSchool.id.toString());
+    }
+  }, [teacherData, selectedSchool]);
+
+  useEffect(() => {
+    if (classes.length > 0 && !selectedClass) {
+      // Set first available class as default
+      const teacherClasses = classes.filter(c => 
+        c.academicYear === selectedYear && 
+        c.schoolId.toString() === selectedSchool
+      );
+      if (teacherClasses.length > 0) {
+        setSelectedClass(teacherClasses[0].id.toString());
+      }
+    }
+  }, [classes, selectedYear, selectedSchool, selectedClass]);
+
+  // Initialize attendance data when students load
+  useEffect(() => {
+    if (students.length > 0) {
+      const initialData: AttendanceData = {};
+      students.forEach(student => {
+        initialData[student.id] = {
+          sakit: student.sakit || 0,
+          izin: student.izin || 0,
+          alpa: student.alpa || 0,
+          tinggiBadan: student.tinggiBadan || 0,
+          beratBadan: student.beratBadan || 0,
+        };
+      });
+      setAttendanceData(initialData);
+
+      // Set first student as selected for narration
+      if (students.length > 0 && !selectedStudent) {
+        setSelectedStudent(students[0].id);
+      }
+    }
+  }, [students, selectedStudent]);
+
+  // Mutations
+  const saveAttendanceMutation = useMutation({
+    mutationFn: async (data: AttendanceData) => {
+      return await apiRequest("/api/attendance/batch", {
+        method: "POST",
+        body: JSON.stringify({
+          attendanceData: data,
+          academicYear: selectedYear,
+          term: selectedTerm,
+        }),
+      });
+    },
+    onSuccess: () => {
       toast({
-        title: "Unauthorized",
-        description: "Only teachers can access grade input.",
+        title: "Success",
+        description: "Attendance data saved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save attendance data",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = user ? "/dashboard" : "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, user, toast]);
-
-  const { data: students, isLoading: studentsLoading } = useQuery({
-    queryKey: ["/api/students"],
-    enabled: !!user && (user as any).roles?.includes("teacher"),
-    retry: false,
-  });
-
-  const { data: aspects, isLoading: aspectsLoading } = useQuery({
-    queryKey: ["/api/assessment-aspects"],
-    enabled: !!user,
-    retry: false,
-  });
-
-  const form = useForm<GradeInputFormData>({
-    resolver: zodResolver(gradeInputSchema),
-    defaultValues: {
-      studentId: "",
-      aspect: "",
-      grades: [],
     },
   });
 
-  const gradeMutation = useMutation({
-    mutationFn: async (data: GradeInputFormData) => {
-      await apiRequest("POST", "/api/grades", {
-        studentId: parseInt(data.studentId),
-        aspect: data.aspect,
-        grades: data.grades,
+  const saveNarrationMutation = useMutation({
+    mutationFn: async (data: NarrationData) => {
+      return await apiRequest("/api/narration", {
+        method: "POST",
+        body: JSON.stringify({
+          ...data,
+          academicYear: selectedYear,
+          term: selectedTerm,
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Narration saved successfully",
+      });
+      setNarrationContent("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save narration",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveGradesMutation = useMutation({
+    mutationFn: async (data: { aspect: string; grades: GradeData }) => {
+      return await apiRequest("/api/grades/batch", {
+        method: "POST",
+        body: JSON.stringify({
+          aspect: data.aspect,
+          gradeData: data.grades,
+          academicYear: selectedYear,
+          term: selectedTerm,
+        }),
       });
     },
     onSuccess: () => {
@@ -79,303 +217,515 @@ export default function GradeInput() {
         title: "Success",
         description: "Grades saved successfully",
       });
+      setGradeData({});
       queryClient.invalidateQueries({ queryKey: ["/api/students"] });
-      form.reset();
-      setGradeInputs([""]);
     },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
+    onError: () => {
       toast({
         title: "Error",
-        description: "Failed to save grades. Please try again.",
+        description: "Failed to save grades",
         variant: "destructive",
       });
     },
   });
 
-  const addGradeInput = () => {
-    if (gradeInputs.length < 7) {
-      setGradeInputs([...gradeInputs, ""]);
-    }
+  // Helper functions
+  const updateAttendanceData = (studentId: number, field: string, value: number) => {
+    setAttendanceData(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [field]: value,
+      },
+    }));
   };
 
-  const removeGradeInput = (index: number) => {
-    if (gradeInputs.length > 1) {
-      const newInputs = gradeInputs.filter((_, i) => i !== index);
-      setGradeInputs(newInputs);
-      
-      // Update form values
-      const currentGrades = form.getValues("grades");
-      const newGrades = currentGrades.filter((_, i) => i !== index);
-      form.setValue("grades", newGrades);
-    }
+  const updateGradeData = (studentId: number, gradeArray: string) => {
+    setGradeData(prev => ({
+      ...prev,
+      [studentId]: gradeArray,
+    }));
   };
 
-  const updateGrade = (index: number, value: string) => {
-    const newInputs = [...gradeInputs];
-    newInputs[index] = value;
-    setGradeInputs(newInputs);
-
-    // Convert to numbers and update form
-    const grades = newInputs
-      .filter(input => input !== "")
-      .map(input => parseInt(input))
-      .filter(num => !isNaN(num) && num >= 1 && num <= 6);
+  const navigateStudent = (direction: 'prev' | 'next') => {
+    if (!selectedStudent || students.length === 0) return;
     
-    form.setValue("grades", grades);
+    const currentIndex = students.findIndex(s => s.id === selectedStudent);
+    let newIndex;
+    
+    if (direction === 'prev') {
+      newIndex = currentIndex > 0 ? currentIndex - 1 : students.length - 1;
+    } else {
+      newIndex = currentIndex < students.length - 1 ? currentIndex + 1 : 0;
+    }
+    
+    setSelectedStudent(students[newIndex].id);
   };
 
-  const onSubmit = (data: GradeInputFormData) => {
-    gradeMutation.mutate(data);
+  const saveAndNext = () => {
+    if (selectedStudent && narrationLabel && narrationContent) {
+      saveNarrationMutation.mutate({
+        studentId: selectedStudent,
+        label: narrationLabel,
+        content: narrationContent,
+      });
+      navigateStudent('next');
+    }
   };
 
-  if (isLoading) {
-    return <GradeInputSkeleton />;
+  const getFinalGrade = (gradeArray: string) => {
+    if (!gradeArray) return "";
+    const grades = gradeArray.split(',').map(g => g.trim());
+    return grades[grades.length - 1] || "";
+  };
+
+  if (isLoading || !user) {
+    return <div>Loading...</div>;
   }
 
-  // Debug: Show current user roles
-  console.log("Current user data:", user);
-  console.log("User roles:", (user as any)?.roles);
-  console.log("Has teacher role:", (user as any)?.roles?.includes("teacher"));
-
-  if (!user || !(user as any).roles?.includes("teacher")) {
-    return null;
+  if (!user.roles?.includes('teacher')) {
+    return <div>Access denied. Only teachers can access this page.</div>;
   }
 
-  const finalGrade = form.watch("grades");
-  const currentFinalGrade = finalGrade?.length > 0 ? finalGrade[finalGrade.length - 1] : null;
+  const filteredClasses = classes.filter(c => 
+    c.academicYear === selectedYear && 
+    c.schoolId.toString() === selectedSchool
+  );
+
+  const selectedStudentData = students.find(s => s.id === selectedStudent);
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Grade Input</h1>
-        <p className="text-gray-600">Input multiple grades per assessment aspect for your students</p>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Teacher Input System</h1>
+          <p className="text-gray-600">Manage student attendance, narrations, and grades</p>
+        </div>
+        <Badge variant="secondary" className="text-sm">
+          {students.length} Students
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Grade Input Form */}
-        <div className="lg:col-span-2">
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Filter Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="academic-year">Academic Year</Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACADEMIC_YEARS.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="term">Term</Label>
+              <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select term" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TERMS.map(term => (
+                    <SelectItem key={term} value={term}>{term}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="school">School</Label>
+              <Select value={selectedSchool} onValueChange={setSelectedSchool}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select school" />
+                </SelectTrigger>
+                <SelectContent>
+                  {schools.map(school => (
+                    <SelectItem key={school.id} value={school.id.toString()}>
+                      {school.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="class">Class</Label>
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredClasses.map(cls => (
+                    <SelectItem key={cls.id} value={cls.id.toString()}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="attendance" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Kehadiran & TB/BB
+          </TabsTrigger>
+          <TabsTrigger value="narration" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Narasi
+          </TabsTrigger>
+          <TabsTrigger value="grades" className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            Nilai
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Attendance Tab */}
+        <TabsContent value="attendance">
           <Card>
             <CardHeader>
-              <CardTitle>Assessment Grade Entry</CardTitle>
+              <CardTitle>Student Attendance & Health Data</CardTitle>
               <CardDescription>
-                Enter up to 7 grades per aspect. The final grade will be the last value entered.
+                Input absence data (Sakit, Izin, Alpa) and health metrics (Height, Weight) for all students
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="studentId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Student</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a student" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {studentsLoading ? (
-                              <SelectItem value="loading" disabled>Loading students...</SelectItem>
-                            ) : (
-                              students?.map((student: any) => (
-                                <SelectItem key={student.id} value={student.id.toString()}>
-                                  {student.fullName}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="aspect"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Assessment Aspect</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select an assessment aspect" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="max-h-60">
-                            {aspectsLoading ? (
-                              <SelectItem value="loading" disabled>Loading aspects...</SelectItem>
-                            ) : (
-                              aspects?.map((aspect: string) => (
-                                <SelectItem key={aspect} value={aspect}>
-                                  {aspect}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div>
-                    <FormLabel>Grade Array (1-6 scale)</FormLabel>
-                    <div className="mt-2 space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        {gradeInputs.map((value, index) => (
-                          <div key={index} className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              min="1"
-                              max="6"
-                              placeholder={`Grade ${index + 1}`}
-                              value={value}
-                              onChange={(e) => updateGrade(index, e.target.value)}
-                              className="w-20"
-                            />
-                            {gradeInputs.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => removeGradeInput(index)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
+              {studentsLoading ? (
+                <div>Loading students...</div>
+              ) : students.length === 0 ? (
+                <div>No students found for the selected filters.</div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 p-2 text-left">Student Name</th>
+                          <th className="border border-gray-300 p-2 text-center">Sakit</th>
+                          <th className="border border-gray-300 p-2 text-center">Izin</th>
+                          <th className="border border-gray-300 p-2 text-center">Alpa</th>
+                          <th className="border border-gray-300 p-2 text-center">Tinggi (cm)</th>
+                          <th className="border border-gray-300 p-2 text-center">Berat (kg)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {students.map(student => (
+                          <tr key={student.id}>
+                            <td className="border border-gray-300 p-2 font-medium">
+                              {student.fullName}
+                              <div className="text-sm text-gray-500">
+                                {student.className} - {student.groupName}
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={attendanceData[student.id]?.sakit || 0}
+                                onChange={(e) => updateAttendanceData(student.id, 'sakit', parseInt(e.target.value) || 0)}
+                                className="w-16 text-center"
+                              />
+                            </td>
+                            <td className="border border-gray-300 p-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={attendanceData[student.id]?.izin || 0}
+                                onChange={(e) => updateAttendanceData(student.id, 'izin', parseInt(e.target.value) || 0)}
+                                className="w-16 text-center"
+                              />
+                            </td>
+                            <td className="border border-gray-300 p-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={attendanceData[student.id]?.alpa || 0}
+                                onChange={(e) => updateAttendanceData(student.id, 'alpa', parseInt(e.target.value) || 0)}
+                                className="w-16 text-center"
+                              />
+                            </td>
+                            <td className="border border-gray-300 p-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={attendanceData[student.id]?.tinggiBadan || 0}
+                                onChange={(e) => updateAttendanceData(student.id, 'tinggiBadan', parseFloat(e.target.value) || 0)}
+                                className="w-20 text-center"
+                              />
+                            </td>
+                            <td className="border border-gray-300 p-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={attendanceData[student.id]?.beratBadan || 0}
+                                onChange={(e) => updateAttendanceData(student.id, 'beratBadan', parseFloat(e.target.value) || 0)}
+                                className="w-20 text-center"
+                              />
+                            </td>
+                          </tr>
                         ))}
-                        {gradeInputs.length < 7 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={addGradeInput}
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add Grade
-                          </Button>
-                        )}
-                      </div>
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => saveAttendanceMutation.mutate(attendanceData)}
+                      disabled={saveAttendanceMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {saveAttendanceMutation.isPending ? "Saving..." : "Batch Save All"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Narration Tab */}
+        <TabsContent value="narration">
+          <Card>
+            <CardHeader>
+              <CardTitle>Student Narration</CardTitle>
+              <CardDescription>
+                Write detailed narrations for each student with categorical labels
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {students.length === 0 ? (
+                <div>No students found for the selected filters.</div>
+              ) : (
+                <>
+                  {/* Student Navigation */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigateStudent('prev')}
+                      disabled={students.length <= 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-4">
+                      <Select
+                        value={selectedStudent?.toString() || ""}
+                        onValueChange={(value) => setSelectedStudent(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-64">
+                          <SelectValue placeholder="Select student" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students.map(student => (
+                            <SelectItem key={student.id} value={student.id.toString()}>
+                              {student.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       
-                      {currentFinalGrade && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">Final Grade:</span>
-                          <Badge variant="outline" className="text-lg font-semibold">
-                            {currentFinalGrade}
-                          </Badge>
-                        </div>
+                      {selectedStudentData && (
+                        <Badge variant="outline">
+                          {selectedStudentData.className} - {selectedStudentData.groupName}
+                        </Badge>
                       )}
-                      
-                      <p className="text-xs text-gray-500">
-                        Enter grades from 1 (Beginning) to 6 (Advanced). The final grade will be the last value in the array.
-                      </p>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigateStudent('next')}
+                      disabled={students.length <= 1}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  {/* Narration Form */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="narration-label">Label Narasi</Label>
+                      <Select value={narrationLabel} onValueChange={setNarrationLabel}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select narration category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {NARRATION_LABELS.map(label => (
+                            <SelectItem key={label} value={label}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    disabled={gradeMutation.isPending}
-                    className="w-full"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    {gradeMutation.isPending ? "Saving..." : "Save Grades"}
-                  </Button>
-                </form>
-              </Form>
+                  <div>
+                    <Label htmlFor="narration-content">Narration Content</Label>
+                    <Textarea
+                      id="narration-content"
+                      value={narrationContent}
+                      onChange={(e) => setNarrationContent(e.target.value)}
+                      placeholder="Write detailed narration about the student's progress, behavior, and development..."
+                      rows={6}
+                      className="mt-2"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (selectedStudent && narrationLabel && narrationContent) {
+                          saveNarrationMutation.mutate({
+                            studentId: selectedStudent,
+                            label: narrationLabel,
+                            content: narrationContent,
+                          });
+                        }
+                      }}
+                      disabled={!selectedStudent || !narrationLabel || !narrationContent || saveNarrationMutation.isPending}
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save
+                    </Button>
+                    
+                    <Button
+                      onClick={saveAndNext}
+                      disabled={!selectedStudent || !narrationLabel || !narrationContent || saveNarrationMutation.isPending}
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save & Next
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
 
-        {/* Grade Scale Reference */}
-        <div>
+        {/* Grades Tab */}
+        <TabsContent value="grades">
           <Card>
             <CardHeader>
-              <CardTitle>Grading Scale</CardTitle>
-              <CardDescription>Standards-based assessment scale</CardDescription>
+              <CardTitle>Grade Input</CardTitle>
+              <CardDescription>
+                Input grade arrays for all students. Format: "2,2,3,4,5,6,5" (final grade is the last value)
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <span className="font-medium">1</span>
-                  <span className="text-sm text-gray-600">Beginning</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                  <span className="font-medium">2</span>
-                  <span className="text-sm text-gray-600">Developing</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <span className="font-medium">3</span>
-                  <span className="text-sm text-gray-600">Approaching</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <span className="font-medium">4</span>
-                  <span className="text-sm text-gray-600">Meeting</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <span className="font-medium">5</span>
-                  <span className="text-sm text-gray-600">Exceeding</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                  <span className="font-medium">6</span>
-                  <span className="text-sm text-gray-600">Advanced</span>
-                </div>
-              </div>
-              
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-600">
-                  <strong>Note:</strong> You can enter multiple grades per aspect to track progress over time. 
-                  The final grade will be the last value in the array.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
+            <CardContent className="space-y-4">
+              {students.length === 0 ? (
+                <div>No students found for the selected filters.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="assessment-aspect">Aspek Penilaian</Label>
+                      <Select value={selectedAspect} onValueChange={setSelectedAspect}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select assessment aspect" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ASSESSMENT_ASPECTS.map(aspect => (
+                            <SelectItem key={aspect} value={aspect}>
+                              {aspect}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-function GradeInputSkeleton() {
-  return (
-    <div className="p-6">
-      <div className="mb-6">
-        <Skeleton className="h-8 w-48 mb-2" />
-        <Skeleton className="h-4 w-96" />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-48 mb-2" />
-              <Skeleton className="h-4 w-64" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ))}
+                  <Separator />
+
+                  {selectedAspect && (
+                    <div className="space-y-4">
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-gray-300">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-gray-300 p-2 text-left">Student Name</th>
+                              <th className="border border-gray-300 p-2 text-center">Grade Array</th>
+                              <th className="border border-gray-300 p-2 text-center">Final Grade</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {students.map(student => (
+                              <tr key={student.id}>
+                                <td className="border border-gray-300 p-2 font-medium">
+                                  {student.fullName}
+                                  <div className="text-sm text-gray-500">
+                                    {student.className} - {student.groupName}
+                                  </div>
+                                </td>
+                                <td className="border border-gray-300 p-2">
+                                  <Input
+                                    value={gradeData[student.id] || ""}
+                                    onChange={(e) => updateGradeData(student.id, e.target.value)}
+                                    placeholder="e.g., 2,2,3,4,5,6,5"
+                                    className="text-center"
+                                  />
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center">
+                                  <Badge variant="secondary">
+                                    {getFinalGrade(gradeData[student.id]) || "-"}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() => {
+                            if (selectedAspect && Object.keys(gradeData).length > 0) {
+                              saveGradesMutation.mutate({
+                                aspect: selectedAspect,
+                                grades: gradeData,
+                              });
+                            }
+                          }}
+                          disabled={!selectedAspect || Object.keys(gradeData).length === 0 || saveGradesMutation.isPending}
+                          className="flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          {saveGradesMutation.isPending ? "Saving..." : "Batch Save Grades"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
