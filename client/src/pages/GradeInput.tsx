@@ -97,9 +97,15 @@ export default function GradeInput() {
     enabled: !!user,
   });
 
-  // Get students based on filters
+  // Get students based on filters using the teacher group filtering endpoint
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ["/api/students", selectedYear, selectedClass, selectedSchool],
+    queryFn: async () => {
+      if (!selectedYear || !selectedClass || !selectedSchool) return [];
+      
+      const response = await apiRequest('GET', `/api/students/${selectedYear}/${selectedClass}/${selectedSchool}`);
+      return await response.json();
+    },
     enabled: !!selectedYear && !!selectedClass && !!selectedSchool,
   });
 
