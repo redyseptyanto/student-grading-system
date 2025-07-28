@@ -83,10 +83,8 @@ export interface IStorage {
   updateStudentAdmin(id: number, data: Partial<Student>): Promise<Student>;
   updateStudentStatus(id: number, isActive: boolean): Promise<Student>;
   deleteStudent(id: number): Promise<void>;
-  createTeacherAdmin(data: any): Promise<Teacher>;
-  updateTeacherAdmin(id: number, data: Partial<Teacher>): Promise<Teacher>;
-  deleteTeacherAdmin(id: number): Promise<void>;
-  assignTeacherToGroups(teacherId: number, groupIds: number[]): Promise<void>;
+  // Teacher admin operations are now handled through user management
+  // createUser, updateUser, assignUserToSchools methods handle teacher operations
   getAllReportTemplates(): Promise<ReportTemplate[]>;
   createReportTemplate(data: InsertReportTemplate): Promise<ReportTemplate>;
   updateReportTemplate(id: number, data: Partial<ReportTemplate>): Promise<ReportTemplate>;
@@ -233,7 +231,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(userSchoolAssignments.schoolId, schoolId),
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -263,7 +261,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(userSchoolAssignments.schoolId, schoolId),
           eq(userSchoolAssignments.academicYear, academicYear),
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
         )
@@ -292,7 +290,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
       .where(
         and(
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
           sql`${userSchoolAssignments.assignedClasses} @> ${JSON.stringify([classId])}`,
           eq(userSchoolAssignments.isActive, true),
           eq(users.isActive, true)
@@ -337,7 +335,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(userSchoolAssignments.userId, teacherUserId),
-          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`,
+          sql`'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`,
           eq(userSchoolAssignments.isActive, true)
         )
       );
@@ -544,7 +542,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userSchoolAssignments, eq(users.id, userSchoolAssignments.userId))
       .leftJoin(schools, eq(userSchoolAssignments.schoolId, schools.id))
       .where(
-        sql`'teacher' = ANY(${users.roles}) OR 'teacher' = ANY(${userSchoolAssignments.rolesAtSchool})`
+        sql`'teacher' = ANY(${users.roles}::text[]) OR 'teacher' = ANY(${userSchoolAssignments.rolesAtSchool}::text[])`
       );
 
     // Get groups assigned to each teacher
@@ -578,8 +576,7 @@ export class DatabaseStorage implements IStorage {
           userId: row.userId,
           fullName: row.fullName,
           email: row.email,
-          phone: row.phone,
-          qualifications: row.qualifications,
+          // phone and qualifications are not part of User schema - remove or add to userSchoolAssignments if needed
           isActive: row.isActive,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
@@ -812,7 +809,7 @@ export class DatabaseStorage implements IStorage {
     const [schoolsCount] = await db.select({ count: sql`count(*)` }).from(schools);
     const [usersCount] = await db.select({ count: sql`count(*)` }).from(users);
     const [studentsCount] = await db.select({ count: sql`count(*)` }).from(students);
-    const [teachersCount] = await db.select({ count: sql`count(*)` }).from(teachers);
+    const [teachersCount] = await db.select({ count: sql`count(*)` }).from(users).where(sql`'teacher' = ANY(${users.roles})`);
 
     return {
       totalSchools: Number(schoolsCount.count),

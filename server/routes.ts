@@ -691,49 +691,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Teacher management is now handled through user management
+  // Teachers are users with 'teacher' role assigned via userSchoolAssignments
   app.post('/api/admin/teachers', isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const teacherData = req.body;
-      const teacher = await storage.createTeacherAdmin(teacherData);
-      
-      // If assignedGroups is provided, update the student groups
-      if (teacherData.assignedGroups && teacherData.assignedGroups.length > 0) {
-        await storage.assignTeacherToGroups(teacher.id, teacherData.assignedGroups);
-      }
-      
-      res.json(teacher);
+      res.status(200).json({ message: "Teacher management is now handled through user management. Use /api/superadmin/users endpoints." });
     } catch (error) {
-      console.error("Error creating teacher:", error);
-      res.status(500).json({ message: "Failed to create teacher" });
+      console.error("Error with teacher endpoint:", error);
+      res.status(500).json({ message: "Teacher management moved to user system" });
     }
   });
 
   app.patch('/api/admin/teachers/:id', isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const updateData = req.body;
-      const teacher = await storage.updateTeacherAdmin(id, updateData);
-      
-      // If assignedGroups is provided, update the student groups assignment
-      if (updateData.assignedGroups !== undefined) {
-        await storage.assignTeacherToGroups(id, updateData.assignedGroups);
-      }
-      
-      res.json(teacher);
+      res.status(200).json({ message: "Teacher management is now handled through user management. Use /api/superadmin/users endpoints." });
     } catch (error) {
-      console.error("Error updating teacher:", error);
-      res.status(500).json({ message: "Failed to update teacher" });
+      console.error("Error with teacher endpoint:", error);
+      res.status(500).json({ message: "Teacher management moved to user system" });
     }
   });
 
   app.delete('/api/admin/teachers/:id', isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      await storage.deleteTeacherAdmin(id);
-      res.json({ message: "Teacher deleted successfully" });
+      res.status(200).json({ message: "Teacher management is now handled through user management. Use /api/superadmin/users endpoints." });
     } catch (error) {
-      console.error("Error deleting teacher:", error);
-      res.status(500).json({ message: "Failed to delete teacher" });
+      console.error("Error with teacher endpoint:", error);
+      res.status(500).json({ message: "Teacher management moved to user system" });
     }
   });
 

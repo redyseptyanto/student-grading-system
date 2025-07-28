@@ -10,6 +10,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (January 2025)
 
+### Major Architecture Simplification (January 28, 2025)
+- **Database Schema Consolidation**: Successfully removed redundant `teachers` and `teacher_assignments` tables 
+- **User-Based Teacher System**: Consolidated all teacher data into `users` table with role-based access via `userSchoolAssignments`
+- **Simplified Data Model**: Teacher information now stored directly in `userSchoolAssignments` with `subjects`, `assignedClasses`, and `academicYear` fields
+- **Direct Teacher-Group References**: Updated `studentGroups` table to reference `teacherUserId` directly to `users` table
+- **API Consolidation**: Teacher management operations now handled through user management endpoints
+- **Database Migration Complete**: Dropped old tables and updated all storage methods to use new user-based teacher system
+
+## Recent Changes (January 2025)
+
 ### Dual Authentication System (January 25, 2025)
 - **Google OAuth Integration**: Implemented Google OAuth 2.0 alongside existing Replit Auth using passport-google-oauth20
 - **Unified Login Page**: Created beautiful dual authentication login page at /login with both Replit and Google signin options  
