@@ -435,8 +435,56 @@ export class DatabaseStorage implements IStorage {
     return student;
   }
 
-  async getStudents(): Promise<Student[]> {
-    return await db.select().from(students);
+  async getStudents(): Promise<any[]> {
+    // Get students with their current enrollment data
+    const result = await db
+      .select({
+        // Student profile data
+        id: students.id,
+        nsp: students.nsp,
+        nis: students.nis,
+        fullName: students.fullName,
+        nickname: students.nickname,
+        gender: students.gender,
+        dateOfBirth: students.dateOfBirth,
+        parentContact: students.parentContact,
+        address: students.address,
+        parentId: students.parentId,
+        schoolId: students.schoolId,
+        isActive: students.isActive,
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+        
+        // Current enrollment data (2025/2026)
+        enrollmentId: studentEnrollments.id,
+        academicYear: studentEnrollments.academicYear,
+        classId: studentEnrollments.classId,
+        groupId: studentEnrollments.groupId,
+        schoolCode: studentEnrollments.schoolCode,
+        status: studentEnrollments.status,
+        noAbsence: studentEnrollments.noAbsence,
+        sakit: studentEnrollments.sakit,
+        izin: studentEnrollments.izin,
+        alpa: studentEnrollments.alpa,
+        tinggiBadan: studentEnrollments.tinggiBadan,
+        beratBadan: studentEnrollments.beratBadan,
+        
+        // Class and group names
+        className: classes.name,
+        groupName: studentGroups.name,
+      })
+      .from(students)
+      .leftJoin(studentEnrollments, and(
+        eq(students.id, studentEnrollments.studentId),
+        eq(studentEnrollments.academicYear, '2025/2026'),
+        eq(studentEnrollments.isActive, true)
+      ))
+      .leftJoin(classes, eq(studentEnrollments.classId, classes.id))
+      .leftJoin(studentGroups, eq(studentEnrollments.groupId, studentGroups.id))
+      .where(eq(students.isActive, true))
+      .orderBy(students.fullName);
+    
+    return result;
   }
 
   async getStudentsBySchool(schoolId: number): Promise<Student[]> {
