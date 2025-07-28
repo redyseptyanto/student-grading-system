@@ -223,6 +223,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Grade Input system route with path parameters
+  app.get('/api/students/:academicYear/:classId/:schoolId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { academicYear, classId, schoolId } = req.params;
+      
+      console.log('Grade Input request - filtering by:', { academicYear, classId, schoolId });
+      
+      // Verify teacher has access to this class/school
+      if (user.roles.includes('teacher')) {
+        const teacherSchools = await storage.getTeacherAssignedSchools(userId);
+        const hasAccessToSchool = teacherSchools.some(school => school.id.toString() === schoolId);
+        if (!hasAccessToSchool) {
+          return res.status(403).json({ message: "Access denied to this school" });
+        }
+        
+        // For teachers, filter by group assignments instead of all class students
+        const students = await storage.getStudentsByTeacherGroups(
+          userId,
+          parseInt(classId), 
+          academicYear, 
+          parseInt(schoolId)
+        );
+        
+        console.log(`Found ${students.length} students for teacher ${userId} in class ${classId} at school ${schoolId}`);
+        return res.json(students);
+      }
+      
+      // For non-teachers (admin/superadmin), show all students in class
+      const students = await storage.getStudentsByClassWithDetails(
+        parseInt(classId), 
+        academicYear, 
+        parseInt(schoolId)
+      );
+      
+      console.log(`Found ${students.length} students for class ${classId} in ${academicYear}`);
+      return res.json(students);
+    } catch (error) {
+      console.error("Error fetching students for Grade Input:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
   // Student routes
   app.get('/api/students', isAuthenticated, async (req: any, res) => {
     try {
