@@ -170,7 +170,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      const results = await storage.updateStudentGradesBatch(aspect, gradeData);
+      // Batch update implementation will be added later - for now process individually
+      const results = [];
+      for (const item of gradeData) {
+        const result = await storage.updateStudentGrades(
+          item.studentId,
+          aspect,
+          item.grades,
+          academicYear,
+          term,
+          userId
+        );
+        results.push(result);
+      }
       res.json({ message: "Grades updated successfully", results });
     } catch (error) {
       console.error("Error updating grades:", error);
@@ -188,19 +200,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only teachers can input grades" });
       }
 
-      const gradeData = gradeInputSchema.parse(req.body);
-      const updatedStudent = await storage.updateStudentGrades(
-        gradeData.studentId,
-        gradeData.aspect,
-        gradeData.grades
+      // Extract the additional required fields for the new grade system
+      const { studentId, aspect, grades, academicYear, term } = req.body;
+      
+      if (!studentId || !aspect || !grades || !academicYear || !term) {
+        return res.status(400).json({ message: "Missing required fields: studentId, aspect, grades, academicYear, term" });
+      }
+
+      const gradeRecord = await storage.updateStudentGrades(
+        studentId,
+        aspect,
+        grades,
+        academicYear,
+        term,
+        userId
       );
 
-      res.json(updatedStudent);
+      res.json(gradeRecord);
     } catch (error) {
       console.error("Error updating grades:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid grade data", errors: error.errors });
-      }
       res.status(500).json({ message: "Failed to update grades" });
     }
   });

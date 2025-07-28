@@ -2,6 +2,8 @@ import {
   users,
   parents,
   students,
+  studentEnrollments,
+  studentGrades,
   classes,
   studentGroups,
   reportTemplates,
@@ -15,6 +17,10 @@ import {
   type InsertParent,
   type Student,
   type InsertStudent,
+  type StudentEnrollment,
+  type InsertStudentEnrollment,
+  type StudentGrade,
+  type InsertStudentGrade,
   type Class,
   type InsertClass,
   type StudentGroup,
@@ -388,43 +394,50 @@ export class DatabaseStorage implements IStorage {
   async getStudentsByClassWithDetails(classId: number, academicYear: string, schoolId: number): Promise<any[]> {
     const result = await db
       .select({
+        // Student profile data
         id: students.id,
         nsp: students.nsp,
         nis: students.nis,
-        noAbsence: students.noAbsence,
         fullName: students.fullName,
         nickname: students.nickname,
         gender: students.gender,
-        schoolCode: students.schoolCode,
-        academicYear: students.academicYear,
-        classId: students.classId,
-        groupId: students.groupId,
-        status: students.status,
-        sakit: students.sakit,
-        izin: students.izin,
-        alpa: students.alpa,
-        tinggiBadan: students.tinggiBadan,
-        beratBadan: students.beratBadan,
-        parentId: students.parentId,
-        schoolId: students.schoolId,
-        grades: students.grades,
         dateOfBirth: students.dateOfBirth,
         parentContact: students.parentContact,
         address: students.address,
+        parentId: students.parentId,
+        schoolId: students.schoolId,
         isActive: students.isActive,
         createdAt: students.createdAt,
         updatedAt: students.updatedAt,
+        
+        // Enrollment data for this academic year
+        enrollmentId: studentEnrollments.id,
+        academicYear: studentEnrollments.academicYear,
+        classId: studentEnrollments.classId,
+        groupId: studentEnrollments.groupId,
+        schoolCode: studentEnrollments.schoolCode,
+        status: studentEnrollments.status,
+        noAbsence: studentEnrollments.noAbsence,
+        sakit: studentEnrollments.sakit,
+        izin: studentEnrollments.izin,
+        alpa: studentEnrollments.alpa,
+        tinggiBadan: studentEnrollments.tinggiBadan,
+        beratBadan: studentEnrollments.beratBadan,
+        
+        // Class and group names
         className: classes.name,
         groupName: studentGroups.name,
       })
       .from(students)
-      .leftJoin(classes, eq(students.classId, classes.id))
-      .leftJoin(studentGroups, eq(students.groupId, studentGroups.id))
+      .innerJoin(studentEnrollments, eq(students.id, studentEnrollments.studentId))
+      .leftJoin(classes, eq(studentEnrollments.classId, classes.id))
+      .leftJoin(studentGroups, eq(studentEnrollments.groupId, studentGroups.id))
       .where(and(
-        eq(students.classId, classId),
-        eq(students.academicYear, academicYear),
-        eq(students.schoolId, schoolId),
-        eq(students.isActive, true)
+        eq(studentEnrollments.classId, classId),
+        eq(studentEnrollments.academicYear, academicYear),
+        eq(studentEnrollments.schoolId, schoolId),
+        eq(students.isActive, true),
+        eq(studentEnrollments.isActive, true)
       ))
       .orderBy(students.fullName);
     
@@ -441,27 +454,74 @@ export class DatabaseStorage implements IStorage {
     return newStudents;
   }
 
-  async updateStudentGrades(studentId: number, aspect: string, grades: number[]): Promise<Student> {
-    const student = await this.getStudent(studentId);
-    if (!student) {
-      throw new Error("Student not found");
+  async updateStudentGrades(studentId: number, aspect: string, grades: number[], academicYear: string, term: string, teacherId: string): Promise<StudentGrade> {
+    // First, find the student's enrollment for this academic year
+    const [enrollment] = await db
+      .select()
+      .from(studentEnrollments)
+      .where(and(
+        eq(studentEnrollments.studentId, studentId),
+        eq(studentEnrollments.academicYear, academicYear)
+      ));
+
+    if (!enrollment) {
+      throw new Error(`Student enrollment not found for academic year ${academicYear}`);
     }
 
-    const updatedGrades = {
-      ...student.grades,
-      [aspect]: grades,
-    };
+    // Calculate final grade (mode with max fallback)
+    const finalGrade = this.calculateFinalGrade(grades);
 
-    const [updatedStudent] = await db
-      .update(students)
-      .set({
-        grades: updatedGrades,
-        updatedAt: new Date(),
+    // Upsert the grade record
+    const [gradeRecord] = await db
+      .insert(studentGrades)
+      .values({
+        studentId,
+        enrollmentId: enrollment.id,
+        academicYear,
+        term,
+        aspect,
+        grades,
+        finalGrade,
+        teacherId,
       })
-      .where(eq(students.id, studentId))
+      .onConflictDoUpdate({
+        target: [studentGrades.studentId, studentGrades.academicYear, studentGrades.term, studentGrades.aspect],
+        set: {
+          grades,
+          finalGrade,
+          teacherId,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
 
-    return updatedStudent;
+    return gradeRecord;
+  }
+
+  private calculateFinalGrade(grades: number[]): number {
+    if (grades.length === 0) return 0;
+    
+    // Calculate mode (most frequent grade)
+    const frequency: { [key: number]: number } = {};
+    for (const grade of grades) {
+      frequency[grade] = (frequency[grade] || 0) + 1;
+    }
+    
+    let maxCount = 0;
+    let mode = 0;
+    for (const [grade, count] of Object.entries(frequency)) {
+      if (count > maxCount) {
+        maxCount = count;
+        mode = parseInt(grade);
+      }
+    }
+    
+    // If no clear mode (all grades appear once), use max
+    if (maxCount === 1) {
+      return Math.max(...grades);
+    }
+    
+    return mode;
   }
 
   // Class operations
@@ -486,10 +546,14 @@ export class DatabaseStorage implements IStorage {
         isActive: classes.isActive,
         createdAt: classes.createdAt,
         updatedAt: classes.updatedAt,
-        studentCount: sql<number>`CAST(COUNT(${students.id}) AS INTEGER)`,
+        studentCount: sql<number>`CAST(COUNT(${studentEnrollments.studentId}) AS INTEGER)`,
       })
       .from(classes)
-      .leftJoin(students, and(eq(students.classId, classes.id), eq(students.isActive, true)))
+      .leftJoin(studentEnrollments, and(
+        eq(studentEnrollments.classId, classes.id), 
+        eq(studentEnrollments.isActive, true),
+        eq(studentEnrollments.academicYear, classes.academicYear)
+      ))
       .groupBy(classes.id)
       .orderBy(classes.name);
 
@@ -512,10 +576,14 @@ export class DatabaseStorage implements IStorage {
         isActive: classes.isActive,
         createdAt: classes.createdAt,
         updatedAt: classes.updatedAt,
-        studentCount: sql<number>`CAST(COUNT(${students.id}) AS INTEGER)`,
+        studentCount: sql<number>`CAST(COUNT(${studentEnrollments.studentId}) AS INTEGER)`,
       })
       .from(classes)
-      .leftJoin(students, and(eq(students.classId, classes.id), eq(students.isActive, true)))
+      .leftJoin(studentEnrollments, and(
+        eq(studentEnrollments.classId, classes.id), 
+        eq(studentEnrollments.isActive, true),
+        eq(studentEnrollments.academicYear, classes.academicYear)
+      ))
       .where(eq(classes.schoolId, schoolId))
       .groupBy(classes.id)
       .orderBy(classes.name);
