@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/Sidebar";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import LoginFailed from "@/pages/LoginFailed";
+import Profile from "@/pages/Profile";
 import Dashboard from "@/pages/Dashboard";
 import GradeInput from "@/pages/GradeInput";
 import StudentProgress from "@/pages/StudentProgress";
@@ -45,6 +46,7 @@ function Router() {
           <Route path="/admin/schools" component={AdminDashboard} />
           <Route path="/admin/reports" component={AdminDashboard} />
           <Route path="/superadmin" component={SuperAdminDashboard} />
+          <Route path="/profile" component={Profile} />
         </>
       )}
       {/* Fallback to 404 */}

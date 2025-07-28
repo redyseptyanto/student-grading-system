@@ -46,6 +46,7 @@ export const users = pgTable("users", {
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  fullName: varchar("full_name"), // Custom editable full name
   profileImageUrl: varchar("profile_image_url"),
   roles: varchar("roles").array().default(["parent"]).notNull(), // Array of roles like ["admin", "teacher"]
   schoolId: integer("school_id").references(() => schools.id), // Primary school for backward compatibility

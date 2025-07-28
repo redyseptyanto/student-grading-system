@@ -64,6 +64,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile management routes
+  app.get('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.patch('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { fullName } = req.body;
+
+      if (!fullName || typeof fullName !== 'string' || !fullName.trim()) {
+        return res.status(400).json({ message: "Full name is required" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, {
+        fullName: fullName.trim()
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   // Grade management routes
   app.post('/api/grades', isAuthenticated, async (req: any, res) => {
     try {

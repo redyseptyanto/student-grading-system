@@ -76,6 +76,25 @@ export function Sidebar({ className }: SidebarProps) {
     window.location.href = "/api/logout";
   };
 
+  const getDisplayName = () => {
+    // Priority: fullName > firstName + lastName > email
+    if ((user as any)?.fullName) {
+      return (user as any).fullName;
+    }
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    return user?.email?.split('@')[0] || 'User';
+  };
+
+  const getInitials = () => {
+    const name = getDisplayName();
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   return (
     <>
       {/* Mobile menu button */}
@@ -143,28 +162,31 @@ export function Sidebar({ className }: SidebarProps) {
 
           {/* User Profile */}
           <div className="border-t border-gray-200 p-6">
-            <div className="flex items-center">
-              <Avatar className="w-10 h-10">
-                <AvatarImage src={user.profileImageUrl || undefined} />
-                <AvatarFallback>
-                  {user.firstName?.[0]}{user.lastName?.[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-gray-700">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">{userRoles.join(", ")}</p>
+            <Link href="/profile">
+              <div className="flex items-center hover:bg-gray-50 p-2 rounded-md transition-colors cursor-pointer mb-3">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={user.profileImageUrl || undefined} />
+                  <AvatarFallback>
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-gray-700">
+                    {getDisplayName()}
+                  </p>
+                  <p className="text-xs text-gray-500 capitalize">{userRoles.join(", ")}</p>
+                </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="w-full justify-start text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>
