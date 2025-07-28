@@ -633,7 +633,10 @@ export default function ClassManagement() {
 
   const { data: teachersData, isLoading: teachersLoading, error: teachersError } = useQuery<Teacher[]>({
     queryKey: ['/api/admin/teachers'],
-    queryFn: () => apiRequest('GET', '/api/admin/teachers'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/teachers');
+      return await response.json();
+    },
     enabled: true,
     staleTime: 0, // Always fetch fresh data
     cacheTime: 0, // Don't cache
@@ -656,8 +659,12 @@ export default function ClassManagement() {
   // Force log raw teachers data
   if (teachersData) {
     console.log('Raw teachersData received:', teachersData);
-    console.log('Teachers count:', teachersData.length);
-    teachersData.forEach((t, i) => console.log(`Teacher ${i}:`, { id: t.id, fullName: t.fullName, email: t.email }));
+    console.log('Teachers count:', Array.isArray(teachersData) ? teachersData.length : 'Not an array');
+    if (Array.isArray(teachersData)) {
+      teachersData.forEach((t, i) => console.log(`Teacher ${i}:`, { id: t.id, fullName: t.fullName, email: t.email }));
+    } else {
+      console.log('teachersData is not an array, type:', typeof teachersData);
+    }
   }
 
   // For non-superadmin users, use their effective school instead of fetching all schools
